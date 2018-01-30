@@ -1,19 +1,35 @@
-extern crate slack_hook;
-use slack_hook::{Slack, PayloadBuilder};
+extern crate slack;
+use slack::{Event, EventHandler, RtmClient};
+
+struct SlackArticleHandler;
+
+impl EventHandler for SlackArticleHandler {
+    fn on_event(&mut self, cli: &RtmClient, event: Event) {
+
+    }
+
+    fn on_close(&mut self, cli: &RtmClient) {
+        println!("articlebot v{} disconnecting ...", std::env::var("CARGO_PKG_VERSION").unwrap());
+    }
+
+    fn on_connect(&mut self, cli: &RtmClient) {
+        println!("articlebot v{} connecting ...", std::env::var("CARGO_PKG_VERSION").unwrap());
+    }
+}
 
 fn main() {
-    let slack = Slack::new("https://hooks.slack.com/services/abc/123/45z").unwrap();
-    let p = PayloadBuilder::new()
-      .text("test message")
-      .channel("#testing")
-      .username("My Bot")
-      .icon_emoji(":chart_with_upwards_trend:")
-      .build()
-      .unwrap();
-
-    let res = slack.send(&p);
-    match res {
-        Ok(()) => println!("ok"),
-        Err(x) => println!("ERR: {:?}",x)
+    let api_key = std::env::var("SLACK_API_KEY");
+    match api_key {
+      Ok(key) => {
+        let mut handler = SlackArticleHandler;
+        let client = RtmClient::login_and_run(&key, &mut handler);
+        match client {
+            Ok(_) => {}
+            Err(err) => panic!("Error: {}", err),
+        }
+      }
+      Err(err) => {
+        panic!("Error: {}", err)
+      }
     }
 }

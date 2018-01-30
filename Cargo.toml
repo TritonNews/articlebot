@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["dmhacker <dmhacker@yahoo.com>"]
 
 [dependencies]
-slack-hook = "0.6.0"
+slack = "0.19.0"
