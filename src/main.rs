@@ -10,9 +10,9 @@ use slack::{Event, EventHandler, RtmClient};
 use trello::Board;
 use std::env;
 
-struct SlackArticleHandler;
+struct SlackHandler;
 
-impl EventHandler for SlackArticleHandler {
+impl EventHandler for SlackHandler {
     fn on_event(&mut self, cli: &RtmClient, event: Event) {
 
     }
@@ -27,19 +27,20 @@ impl EventHandler for SlackArticleHandler {
 }
 
 fn main() {
+    // Get all environment variables
     let slack_api_key = env::var("SLACK_API_KEY").expect("Slack API key not found");
     let trello_api_key = env::var("TRELLO_API_KEY").expect("Trello API key not found");
     let trello_oauth_token = env::var("TRELLO_OAUTH_TOKEN").expect("Trello OAuth token not found");
     let trello_board_id = env::var("TRELLO_BOARD_ID").expect("Trello board ID not found");
 
-    let mut board = Board::new(&trello_board_id, &trello_api_key, &trello_oauth_token);
-    board.load();
-    board.start_tracking();
+    // Create the Slack handler
+    let mut handler = SlackHandler;
 
-    let mut handler = SlackArticleHandler;
-    let client = RtmClient::login_and_run(&slack_api_key, &mut handler);
-    match client {
-        Ok(_) => {}
-        Err(err) => panic!("Error: {}", err),
-    }
+    // Log into Slack, connect the handler, and start listening for events
+    let client = RtmClient::login(&slack_api_key).expect("Slack connection error");
+    client.run(&mut handler);
+
+    // Create the Trello board representation and connect it to Slack
+    let mut board = Board::new(&trello_board_id, &trello_api_key, &trello_oauth_token, client.sender());
+    board.listen();
 }
