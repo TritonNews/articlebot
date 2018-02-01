@@ -14,6 +14,7 @@ use slack::{Event, EventHandler, RtmClient, Message};
 use trello::Board;
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::{Database, ThreadedDatabase};
+use bson::Bson;
 
 struct SlackHandler {
   db: Database
@@ -42,12 +43,25 @@ impl EventHandler for SlackHandler {
             };
 
             // Delete all previous records in the Slack and Trello collections if they exist
-            if let Some(sdoc) = slack_coll.find_one_and_delete(slack_lookup.clone(), None).expect("Failed to delete document") {
+            if let Some(sdoc) = slack_coll.find_one_and_delete(slack_lookup, None).expect("Failed to delete document") {
               let trello_lookup_old = doc! {
                 "tracking": sdoc.get_str("tracking").unwrap()
               };
               if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup_old.clone()), None).expect("Failed to find document") {
+                // Remove our current tracker from where it was originally tracking
+                let mut trackers_old = tdoc.get_array("trackers").unwrap().clone();
+                let index = trackers_old.iter().position(|tracker_old| *tracker_old.as_str().unwrap() == tracker).unwrap();
+                trackers_old.remove(index);
 
+                // If the Trello user has no trackers, delete it. Otherwise, update it to reflect the changes made to its changes.
+                if trackers_old.is_empty() {
+                  trello_coll.delete_one(trello_lookup_old, None).expect("Failed to delete document");
+                }
+                else {
+                  let mut tdoc_new = tdoc.clone();
+                  tdoc_new.insert_bson("trackers".to_string(), Bson::Array(trackers_old));
+                  trello_coll.update_one(trello_lookup_old, tdoc_new, None).expect("Failed to update document");
+                }
               }
             }
 
@@ -60,7 +74,13 @@ impl EventHandler for SlackHandler {
 
             // Update (or create/insert) the Trello document that contains the trackers
             if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup.clone()), None).expect("Failed to find document") {
+              let mut trackers = tdoc.get_array("trackers").unwrap().clone();
+              trackers.push(Bson::String(tracker));
 
+              let mut tdoc_new = tdoc.clone();
+              tdoc_new.insert_bson("trackers".to_string(), Bson::Array(trackers));
+
+              trello_coll.update_one(trello_lookup, tdoc_new, None).expect("Failed to update document");
             }
             else {
               trello_coll.insert_one(doc! {
