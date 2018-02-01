@@ -11,6 +11,8 @@ use serde_json::Value;
 const USER_AGENT: &'static str =
   "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
 
+const ACTION_TYPE_FILTERS: &'static str = "moveCardFromBoard,moveCardToBoard";
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Member {
@@ -70,7 +72,7 @@ impl<'a> Board<'a> {
 
     loop {
       let mut resp = self.http_client
-        .get(&format!("{}/actions?since={}&{}", self.http_url, self.http_since_parameter, self.http_token_parameters))
+        .get(&format!("{}/actions?filter={}&since={}&{}", self.http_url, ACTION_TYPE_FILTERS, self.http_since_parameter, self.http_token_parameters))
         .header(UserAgent::new(USER_AGENT.to_string()))
         .send()?;
 
