@@ -1,14 +1,16 @@
+#[macro_use(bson, doc)]
+extern crate bson;
+extern crate mongodb;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
 extern crate slack;
 extern crate reqwest;
-extern crate mongodb;
 
 mod trello;
 
 use std::env;
-use slack::{Event, EventHandler, RtmClient};
+use slack::{Event, EventHandler, RtmClient, Message};
 use trello::Board;
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::{Database, ThreadedDatabase};
@@ -19,7 +21,59 @@ struct SlackHandler {
 
 impl EventHandler for SlackHandler {
   fn on_event(&mut self, cli: &RtmClient, event: Event) {
+    match event {
+      Event::Message(boxed_message) => {
+        match *boxed_message {
+          Message::Standard(message) => {
+            let tracker = message.user.unwrap();
+            let tracking = message.text.unwrap();
+            let channel = message.channel.unwrap();
 
+            // Slack collection in MongoDB (key: tracker id, other data: channel id, tracking name)
+            let slack_coll = self.db.collection("slack");
+            let slack_lookup = doc! {
+              "uid": &tracker
+            };
+
+            // Trello collection in MongoDB (key: tracking name, other data: list of trackers)
+            let trello_coll = self.db.collection("trello");
+            let trello_lookup = doc! {
+              "name": &tracking
+            };
+
+            // Delete all previous records in the Slack and Trello collections if they exist
+            if let Some(sdoc) = slack_coll.find_one_and_delete(slack_lookup.clone(), None).expect("Failed to delete document") {
+              let trello_lookup_old = doc! {
+                "tracking": sdoc.get_str("tracking").expect("Expected tracking to be a string")
+              };
+              if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup_old.clone()), None).expect("Failed to find document") {
+
+              }
+            }
+
+            // Insert a new Slack document specifying the tracker's information
+            slack_coll.insert_one(doc! {
+              "uid": &tracker,
+              "cid": &channel,
+              "tracking": &tracking
+            }, None).expect("Failed to insert document");
+
+            // Update (or create/insert) the Trello document that contains the trackers
+            if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup.clone()), None).expect("Failed to find document") {
+
+            }
+            else {
+              trello_coll.insert_one(doc! {
+                "name": &tracking,
+                "trackers": [&tracker]
+              }, None).expect("Failed to insert document");
+            }
+          },
+          _ => ()
+        }
+      },
+      _ => ()
+    }
   }
 
   fn on_close(&mut self, cli: &RtmClient) {

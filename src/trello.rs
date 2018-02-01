@@ -21,7 +21,6 @@ pub struct Board<'a> {
 }
 
 impl<'a> Board<'a> {
-
   pub fn new(board_id: &str, trello_api_key: &str, trello_oauth_token: &str, slack_sender: &'a Sender) -> Board<'a> {
     let properties = BoardProperties {
       id: board_id.to_string(),
