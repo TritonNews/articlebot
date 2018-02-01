@@ -1,38 +1,58 @@
+use std::time::Duration;
+use std::thread;
 use reqwest::Client;
 use reqwest::header::UserAgent;
 use reqwest::Result;
 use slack::Sender;
 use mongodb::db::{Database, ThreadedDatabase};
+use chrono::prelude::*;
+use serde_json::Value;
 
 const USER_AGENT: &'static str =
   "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
 
 #[derive(Deserialize)]
-struct BoardProperties {
+#[serde(rename_all = "camelCase")]
+struct Member {
   id: String,
-  name: String
+  avatar_hash: String,
+  full_name: String,
+  initials: String,
+  username: String
+}
+
+#[derive(Deserialize)]
+struct Action {
+  id: String,
+  data: Value,
+  date: String, // TODO: Switch to using DateTime<Utc> later
+  #[serde(rename = "type")]
+  action_type: String,
+  #[serde(rename = "idMemberCreator")]
+  id_member_creator: String,
+  #[serde(rename = "memberCreator")]
+  member_creator: Member
 }
 
 pub struct Board<'a> {
-  properties: BoardProperties,
+  pub id: String,
+  pub name: String,
   db: &'a Database,
   sender: &'a Sender,
   http_url: String,
+  http_since_parameter: DateTime<Utc>,
   http_token_parameters: String,
   http_client: Client
 }
 
 impl<'a> Board<'a> {
   pub fn new(board_id: &str, trello_api_key: &str, trello_oauth_token: &str, mongodb: &'a Database, slack_sender: &'a Sender) -> Board<'a> {
-    let properties = BoardProperties {
-      id: board_id.to_string(),
-      name: "".to_string()
-    };
-
     Board {
-      properties: properties,
+      id: board_id.to_string(),
+      name: "".to_string(),
       db: mongodb,
       sender: slack_sender,
+      http_since_parameter: Utc::now(),
       http_url: format!("https://api.trello.com/1/boards/{}", board_id).to_string(),
       http_token_parameters: format!("key={}&token={}", trello_api_key, trello_oauth_token).to_string(),
       http_client: Client::new()
@@ -40,13 +60,29 @@ impl<'a> Board<'a> {
   }
 
   pub fn listen(&mut self) -> Result<()> {
-    let mut resp = self.http_client
+    let mut prop_resp = self.http_client
       .get(&format!("{}?fields=name&{}", self.http_url, self.http_token_parameters))
       .header(UserAgent::new(USER_AGENT.to_string()))
       .send()?;
 
-    self.properties = resp.json()?;
+    let properties : Value = prop_resp.json()?;
+    self.name = properties.get("name").unwrap().as_str().unwrap().to_string();
 
-    Ok(())
+    loop {
+      let mut resp = self.http_client
+        .get(&format!("{}/actions?since={}&{}", self.http_url, self.http_since_parameter, self.http_token_parameters))
+        .header(UserAgent::new(USER_AGENT.to_string()))
+        .send()?;
+
+      let actions : Vec<Action> = resp.json()?;
+
+      for action in actions {
+
+      }
+
+      self.http_since_parameter = Utc::now();
+
+      thread::sleep(Duration::from_secs(600));
+    }
   }
 }

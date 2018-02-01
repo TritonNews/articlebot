@@ -4,8 +4,10 @@ extern crate mongodb;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
+extern crate serde_json;
 extern crate slack;
 extern crate reqwest;
+extern crate chrono;
 
 mod trello;
 
@@ -136,5 +138,5 @@ fn main() {
   // Connect to Trello
   // TODO: Remove the Trello module's dependencies on Slack and MongoDB
   let mut board = Board::new(&trello_board_id, &trello_api_key, &trello_oauth_token, &db, slack_client.sender());
-  board.listen().ok().expect("Something went wrong! The board event loop should block forever.");
+  board.listen().expect("Event loop error");
 }
