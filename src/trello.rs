@@ -2,6 +2,7 @@ use reqwest::Client;
 use reqwest::header::UserAgent;
 use reqwest::Result;
 use slack::Sender;
+use mongodb::db::{Database, ThreadedDatabase};
 
 const USER_AGENT: &'static str =
   "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
@@ -14,14 +15,15 @@ struct BoardProperties {
 
 pub struct Board<'a> {
   properties: BoardProperties,
-  slack_sender: &'a Sender,
+  db: &'a Database,
+  sender: &'a Sender,
   http_url: String,
   http_token_parameters: String,
   http_client: Client
 }
 
 impl<'a> Board<'a> {
-  pub fn new(board_id: &str, trello_api_key: &str, trello_oauth_token: &str, slack_sender: &'a Sender) -> Board<'a> {
+  pub fn new(board_id: &str, trello_api_key: &str, trello_oauth_token: &str, mongodb: &'a Database, slack_sender: &'a Sender) -> Board<'a> {
     let properties = BoardProperties {
       id: board_id.to_string(),
       name: "".to_string()
@@ -29,7 +31,8 @@ impl<'a> Board<'a> {
 
     Board {
       properties: properties,
-      slack_sender: slack_sender,
+      db: mongodb,
+      sender: slack_sender,
       http_url: format!("https://api.trello.com/1/boards/{}", board_id).to_string(),
       http_token_parameters: format!("key={}&token={}", trello_api_key, trello_oauth_token).to_string(),
       http_client: Client::new()

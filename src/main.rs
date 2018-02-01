@@ -10,17 +10,17 @@ extern crate reqwest;
 mod trello;
 
 use std::env;
-use slack::{Event, EventHandler, RtmClient, Message};
 use trello::Board;
+use slack::{Event, EventHandler, RtmClient, Message};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::{Database, ThreadedDatabase};
 use bson::Bson;
 
-struct SlackHandler {
-  db: Database
+struct SlackHandler<'a> {
+  db: &'a Database
 }
 
-impl EventHandler for SlackHandler {
+impl<'a> EventHandler for SlackHandler<'a> {
   fn on_event(&mut self, cli: &RtmClient, event: Event) {
     match event {
       Event::Message(boxed_message) => {
@@ -88,6 +88,9 @@ impl EventHandler for SlackHandler {
                 "trackers": [&tracker]
               }, None).expect("Failed to insert document");
             }
+
+            let sender = cli.sender();
+            sender.send_message(&channel[..], &format!("You will now be notified when {}'s articles are moved in Trello.", tracking)[..]).expect("Slack sender error");
           },
           _ => ()
         }
@@ -96,11 +99,11 @@ impl EventHandler for SlackHandler {
     }
   }
 
-  fn on_close(&mut self, cli: &RtmClient) {
+  fn on_close(&mut self, _cli: &RtmClient) {
     println!("articlebot v{} disconnecting ...", std::env::var("CARGO_PKG_VERSION").unwrap());
   }
 
-  fn on_connect(&mut self, cli: &RtmClient) {
+  fn on_connect(&mut self, _cli: &RtmClient) {
     println!("articlebot v{} connecting ...", std::env::var("CARGO_PKG_VERSION").unwrap());
   }
 }
@@ -123,15 +126,15 @@ fn main() {
 
   // Create the Slack handler
   let mut slack_handler = SlackHandler {
-    db: db
+    db: &db
   };
 
   // Connect to Slack, attach the handler, and start listening for events
   let slack_client = RtmClient::login(&slack_api_key).expect("Slack connection error");
-  slack_client.run(&mut slack_handler);
+  slack_client.run(&mut slack_handler).expect("Slack client error");
 
   // Connect to Trello
-  // TODO: Use a generic board handler to keep Trello API separate from Slack
-  let mut board = Board::new(&trello_board_id, &trello_api_key, &trello_oauth_token, slack_client.sender());
-  board.listen();
+  // TODO: Remove the Trello module's dependencies on Slack and MongoDB
+  let mut board = Board::new(&trello_board_id, &trello_api_key, &trello_oauth_token, &db, slack_client.sender());
+  board.listen().ok().expect("Something went wrong! The board event loop should block forever.");
 }
