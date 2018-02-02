@@ -11,7 +11,7 @@ use serde_json::Value;
 const USER_AGENT: &'static str =
   "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
 
-const ACTION_TYPE_FILTERS: &'static str = "moveCardFromBoard,moveCardToBoard";
+const ACTION_TYPE_FILTERS: &'static str = "updateCard";
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,9 +31,9 @@ struct Action {
   #[serde(rename = "type")]
   action_type: String,
   #[serde(rename = "idMemberCreator")]
-  id_member_creator: String,
+  creator_id: String,
   #[serde(rename = "memberCreator")]
-  member_creator: Member
+  creator: Member
 }
 
 pub struct Board<'a> {
@@ -79,7 +79,20 @@ impl<'a> Board<'a> {
       let actions : Vec<Action> = resp.json()?;
 
       for action in actions {
+        if let Some(list_before) = action.data.get("listBefore") {
+          let list_after = action.data.get("listAfter").unwrap();
+          let list_before_name = list_before.get("name").unwrap().as_str().unwrap();
+          let list_after_name = list_after.get("name").unwrap().as_str().unwrap();
 
+          let trello_coll = self.db.collection("trello");
+          let trello_lookup = doc! {
+            "name": &action.creator.full_name
+          };
+
+          if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup.clone()), None).expect("Failed to find document") {
+            // TODO: Get list of trackers from tdoc and broadcast notification to each through Slack
+          }
+        }
       }
 
       self.http_since_parameter = Utc::now();
