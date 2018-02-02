@@ -117,15 +117,10 @@ fn main() {
     let trello_api_key = env::var("TRELLO_API_KEY").expect("Trello API key not found");
     let trello_oauth_token = env::var("TRELLO_OAUTH_TOKEN").expect("Trello OAuth token not found");
     let trello_board_id = env::var("TRELLO_BOARD_ID").expect("Trello board ID not found");
-    let mongodb_host = env::var("MONGODB_HOSTNAME").expect("MongoDB hostname not found");
-    let mongodb_port = env::var("MONGODB_PORT").expect("MongoDB port not found");
-    let mongodb_user = env::var("MONGODB_USERNAME").expect("MongoDB username not found");
-    let mongodb_pass = env::var("MONGODB_PASSWORD").expect("MongoDB password not found");
 
     // Connect to MongoDB
-    let mongo_client = Client::connect(&mongodb_host[..], mongodb_port.parse::<u16>().unwrap()).expect("MongoDB connection error");
+    let mongo_client = Client::connect("localhost", 27017).expect("MongoDB connection error");
     let db = mongo_client.db("articlebot");
-    db.auth(&mongodb_user[..], &mongodb_pass[..]).unwrap();
 
     // Create the Slack handler
     let mut slack_handler = SlackHandler {
