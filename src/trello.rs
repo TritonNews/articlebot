@@ -11,8 +11,9 @@ use serde_json::Value;
 const USER_AGENT: &'static str =
   "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
 
-const ACTION_TYPE_FILTERS: &'static str = "updateCard";
+const UPDATE_INTERVAL_SECONDS: u64 = 600;
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Member {
@@ -23,6 +24,7 @@ struct Member {
   username: String
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 struct Action {
   id: String,
@@ -36,9 +38,8 @@ struct Action {
   creator: Member
 }
 
-pub struct Board<'a> {
+pub struct BoardHandler<'a> {
   pub id: String,
-  pub name: String,
   db: &'a Database,
   sender: &'a Sender,
   http_url: String,
@@ -47,11 +48,10 @@ pub struct Board<'a> {
   http_client: Client
 }
 
-impl<'a> Board<'a> {
-  pub fn new(board_id: &str, trello_api_key: &str, trello_oauth_token: &str, mongodb: &'a Database, slack_sender: &'a Sender) -> Board<'a> {
-    Board {
+impl<'a> BoardHandler<'a> {
+  pub fn new(board_id: &str, trello_api_key: &str, trello_oauth_token: &str, mongodb: &'a Database, slack_sender: &'a Sender) -> BoardHandler<'a> {
+    BoardHandler {
       id: board_id.to_string(),
-      name: "".to_string(),
       db: mongodb,
       sender: slack_sender,
       http_since_parameter: Utc::now(),
@@ -62,42 +62,54 @@ impl<'a> Board<'a> {
   }
 
   pub fn listen(&mut self) -> Result<()> {
-    let mut prop_resp = self.http_client
-      .get(&format!("{}?fields=name&{}", self.http_url, self.http_token_parameters))
-      .header(UserAgent::new(USER_AGENT.to_string()))
-      .send()?;
-
-    let properties : Value = prop_resp.json()?;
-    self.name = properties.get("name").unwrap().as_str().unwrap().to_string();
-
     loop {
       let mut resp = self.http_client
-        .get(&format!("{}/actions?filter={}&since={}&{}", self.http_url, ACTION_TYPE_FILTERS, self.http_since_parameter, self.http_token_parameters))
+        .get(&format!("{}/actions?filter=updateCard&since={}&{}", self.http_url, self.http_since_parameter, self.http_token_parameters))
         .header(UserAgent::new(USER_AGENT.to_string()))
         .send()?;
 
       let actions : Vec<Action> = resp.json()?;
 
       for action in actions {
+        // Make sure that we only capture when a card is moved between lists
         if let Some(list_before) = action.data.get("listBefore") {
           let list_after = action.data.get("listAfter").unwrap();
+          let card = action.data.get("card").unwrap();
+
           let list_before_name = list_before.get("name").unwrap().as_str().unwrap();
           let list_after_name = list_after.get("name").unwrap().as_str().unwrap();
+          let card_title = card.get("name").unwrap().as_str().unwrap();
 
           let trello_coll = self.db.collection("trello");
           let trello_lookup = doc! {
             "name": &action.creator.full_name
           };
 
-          if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup.clone()), None).expect("Failed to find document") {
-            // TODO: Get list of trackers from tdoc and broadcast notification to each through Slack
+          // If any Slack user is tracking this Trello user, find all Slack DM channel IDs through MongoDB and send a message to each one
+          if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup), None).expect("Failed to find document") {
+            let trackers = tdoc.get_array("trackers").unwrap();
+
+            let slack_coll = self.db.collection("slack");
+
+            for tracker in trackers {
+              let slack_lookup = doc! {
+                "uid": tracker.as_str().unwrap()
+              };
+              // Tracker refers to a slack user that must exist
+              let sdoc = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document").unwrap();
+              let channel = sdoc.get_str("cid").unwrap();
+
+              self.sender.send_message(channel, &format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name))
+                .expect("Slack sender error");
+            }
+
           }
         }
       }
 
       self.http_since_parameter = Utc::now();
 
-      thread::sleep(Duration::from_secs(600));
+      thread::sleep(Duration::from_secs(UPDATE_INTERVAL_SECONDS));
     }
   }
 }

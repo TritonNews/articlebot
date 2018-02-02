@@ -12,7 +12,7 @@ extern crate chrono;
 mod trello;
 
 use std::env;
-use trello::Board;
+use trello::BoardHandler;
 use slack::{Event, EventHandler, RtmClient, Message};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::{Database, ThreadedDatabase};
@@ -92,7 +92,8 @@ impl<'a> EventHandler for SlackHandler<'a> {
             }
 
             let sender = cli.sender();
-            sender.send_message(&channel[..], &format!("You will now be notified when {}'s articles are moved in Trello.", tracking)[..]).expect("Slack sender error");
+            sender.send_message(&channel[..], &format!("You will now be notified when {}'s articles are moved in Trello.", tracking)[..])
+              .expect("Slack sender error");
           },
           _ => ()
         }
@@ -137,6 +138,6 @@ fn main() {
 
   // Connect to Trello
   // TODO: Remove the Trello module's dependencies on Slack and MongoDB
-  let mut board = Board::new(&trello_board_id, &trello_api_key, &trello_oauth_token, &db, slack_client.sender());
+  let mut board = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, &db, slack_client.sender());
   board.listen().expect("Event loop error");
 }
