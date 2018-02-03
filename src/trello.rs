@@ -8,9 +8,7 @@ use mongodb::db::{Database, ThreadedDatabase};
 use chrono::prelude::*;
 use serde_json::Value;
 
-const USER_AGENT: &'static str =
-  "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
-
+const USER_AGENT: &'static str = "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
 const UPDATE_INTERVAL_SECONDS: u64 = 600;
 
 #[allow(dead_code)]

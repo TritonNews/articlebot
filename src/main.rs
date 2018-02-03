@@ -11,12 +11,16 @@ extern crate chrono;
 
 mod trello;
 
-use std::env;
+use std::{env, thread};
 use trello::BoardHandler;
 use slack::{Event, EventHandler, RtmClient, Message};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::{Database, ThreadedDatabase};
 use bson::Bson;
+
+const MONGODB_HOSTNAME: &'static str = "localhost";
+const MONGODB_PORT: u16 = 27017;
+const MONGODB_DATABASE: &'static str = "articlebot";
 
 struct SlackHandler<'a> {
     db: &'a Database
@@ -111,6 +115,10 @@ impl<'a> EventHandler for SlackHandler<'a> {
     }
 }
 
+fn open_database_connection() -> Database {
+    return Client::connect(MONGODB_HOSTNAME, MONGODB_PORT).expect("MongoDB connection error").db(MONGODB_DATABASE);
+}
+
 fn main() {
     // Get all environment variables
     let slack_api_key = env::var("SLACK_API_KEY").expect("Slack API key not found");
@@ -118,21 +126,21 @@ fn main() {
     let trello_oauth_token = env::var("TRELLO_OAUTH_TOKEN").expect("Trello OAuth token not found");
     let trello_board_id = env::var("TRELLO_BOARD_ID").expect("Trello board ID not found");
 
-    // Connect to MongoDB
-    let mongo_client = Client::connect("localhost", 27017).expect("MongoDB connection error");
-    let db = mongo_client.db("articlebot");
-
-    // Create the Slack handler
-    let mut slack_handler = SlackHandler {
-        db: &db
-    };
-
-    // Connect to Slack, attach the handler, and start listening for events
+    // Create shared Slack utilities
     let slack_client = RtmClient::login(&slack_api_key).expect("Slack connection error");
-    slack_client.run(&mut slack_handler).expect("Slack client error");
+    let slack_sender = slack_client.sender().clone();
 
-    // Connect to Trello
-    // TODO: Remove the Trello module's dependencies on Slack and MongoDB
-    let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, &db, slack_client.sender());
+    // Offload the Slack message receiver/client to its own thread so it doesn't block the main thread
+    thread::spawn(move || {
+        let db = open_database_connection();
+        let mut slack_handler = SlackHandler {
+            db: &db
+        };
+        slack_client.run(&mut slack_handler).expect("Slack client error");
+    });
+
+    // Connect to Trello (will block main thread)
+    let db = open_database_connection();
+    let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, &db, &slack_sender);
     board_handler.listen().expect("Event loop error");
 }
