@@ -36,18 +36,18 @@ struct Action {
     creator: Member
 }
 
-pub struct BoardHandler<'a> {
+pub struct BoardHandler {
     pub id: String,
-    db: &'a Database,
-    sender: &'a Sender,
+    db: Database,
+    sender: Sender,
     http_url: String,
     http_since_parameter: DateTime<Utc>,
     http_token_parameters: String,
     http_client: Client
 }
 
-impl<'a> BoardHandler<'a> {
-    pub fn new(board_id: &str, trello_api_key: &str, trello_oauth_token: &str, mongodb: &'a Database, slack_sender: &'a Sender) -> BoardHandler<'a> {
+impl BoardHandler {
+    pub fn new(board_id: &str, trello_api_key: &str, trello_oauth_token: &str, mongodb: Database, slack_sender: Sender) -> BoardHandler {
         BoardHandler {
             id: board_id.to_string(),
             db: mongodb,

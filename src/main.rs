@@ -141,6 +141,6 @@ fn main() {
 
     // Connect to Trello (will block main thread)
     let db = open_database_connection();
-    let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, &db, &slack_sender);
+    let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, db, slack_sender);
     board_handler.listen().expect("Event loop error");
 }
