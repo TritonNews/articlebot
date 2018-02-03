@@ -72,7 +72,7 @@ impl<L : BoardListener> BoardHandler<L> {
 
             let actions : Vec<Action> = resp.json()?;
 
-            println!("[TRELLO] {} actions since last update.", actions.iter().count());
+            info!("[TRELLO] {} actions since last update.", actions.iter().count());
 
             for action in actions {
                 self.board_listener.on_action(action);
