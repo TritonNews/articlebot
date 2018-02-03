@@ -121,6 +121,10 @@ struct SlackBoardListener {
 }
 
 impl BoardListener for SlackBoardListener {
+    fn get_filtered_actions(&self) -> &str {
+        return &"updateCard";
+    }
+
     fn on_action(&self, action : Action) {
         // Make sure that we only capture when a card is moved between lists
         if let Some(list_before) = action.data.get("listBefore") {

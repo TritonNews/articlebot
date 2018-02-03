@@ -33,6 +33,7 @@ pub struct Action {
 }
 
 pub trait BoardListener {
+    fn get_filtered_actions(&self) -> &str;
     fn on_action(&self, action : Action);
 }
 
@@ -60,7 +61,7 @@ impl<L : BoardListener> BoardHandler<L> {
     pub fn listen(&mut self) -> Result<()> {
         loop {
             let mut resp = self.http_client
-                .get(&format!("{}/actions?filter=updateCard&since={}&{}", self.http_url, self.http_since_parameter, self.http_token_parameters))
+                .get(&format!("{}/actions?filter={}&since={}&{}", self.http_url, self.board_listener.get_filtered_actions(), self.http_since_parameter, self.http_token_parameters))
                 .header(UserAgent::new(USER_AGENT.to_string()))
                 .send()?;
 
