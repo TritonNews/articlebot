@@ -31,19 +31,19 @@ impl EventHandler for SlackHandler {
         let sender = cli.sender();
         if let Event::Message(boxed_message) = event {
             if let Message::Standard(message) = *boxed_message {
-                let text = message.text.unwrap();
-                let channel = message.channel.unwrap();
+                let text : &str = &message.text.unwrap()[..];
+                let channel : &str = &message.channel.unwrap()[..];
 
                 let args: Vec<&str> = text.split(" ").collect();
                 let command = args[0];
 
                 if command == "/hello" {
-                    sender.send_message(&channel[..], "Hello there.").expect("Slack sender error");
+                    sender.send_message(channel, "Hello there.").expect("Slack sender error");
                 }
                 else if command == "/whoami" {
                     let tracker = message.user.unwrap();
 
-                    sender.send_message(&channel[..], "Fetching user information ...").expect("Slack sender error");
+                    sender.send_message(channel, "Fetching user information ...").expect("Slack sender error");
 
                     // Slack collection in MongoDB (key: tracker id, other data: channel id, tracking name)
                     let slack_coll = self.db.collection("slack");
@@ -52,13 +52,13 @@ impl EventHandler for SlackHandler {
                     };
 
                     if let Some(sdoc) = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document") {
-                        sender.send_message(&channel[..], &format!("You are {} on Slack.", tracker)[..]).expect("Slack sender error");
-                        sender.send_message(&channel[..], &format!("You are currently tracking \"{}\" on Trello.", sdoc.get_str("tracking").unwrap())[..])
+                        sender.send_message(channel, &format!("You are {} on Slack.", tracker)[..]).expect("Slack sender error");
+                        sender.send_message(channel, &format!("You are currently tracking \"{}\" on Trello.", sdoc.get_str("tracking").unwrap())[..])
                             .expect("Slack sender error");
                     }
                     else {
-                        sender.send_message(&channel[..], &format!("You are {} on Slack.", tracker)[..]).expect("Slack sender error");
-                        sender.send_message(&channel[..], "You are currently not tracking a Trello user.").expect("Slack sender error");
+                        sender.send_message(channel, &format!("You are {} on Slack.", tracker)[..]).expect("Slack sender error");
+                        sender.send_message(channel, "You are currently not tracking a Trello user.").expect("Slack sender error");
                     }
                 }
                 else if command == "/track" {
@@ -103,7 +103,7 @@ impl EventHandler for SlackHandler {
                     // Insert a new Slack document specifying the tracker's information
                     slack_coll.insert_one(doc! {
                         "uid": &tracker,
-                        "cid": &channel,
+                        "cid": channel,
                         "tracking": &tracking
                     }, None).expect("Failed to insert document");
 
@@ -124,11 +124,11 @@ impl EventHandler for SlackHandler {
                         }, None).expect("Failed to insert document");
                     }
 
-                    sender.send_message(&channel[..], &format!("You will now be notified when {}'s articles are moved in Trello.", tracking)[..])
+                    sender.send_message(channel, &format!("You will now be notified when {}'s articles are moved in Trello.", tracking)[..])
                         .expect("Slack sender error");
                 }
                 else {
-                    sender.send_message(&channel[..], &format!("I did not understand your command \"{}\".", command)[..])
+                    sender.send_message(channel, &format!("I did not understand your command \"{}\".", command)[..])
                         .expect("Slack sender error");
                 }
             }
