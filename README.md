@@ -8,7 +8,19 @@ This bot notifies editors on Slack when their corresponding Trello articles/card
 
 ## Interacting with _articlebot_
 
-Coming soon!
+You can interact with articlebot through commands. Commands are given in the form "{COMMAND} {ARGUMENTS}" where {COMMAND} is some word and {ARGUMENTS} is some space-delimited list of words.
+
+Here is a list of valid commands:
+
+* hello
+  - Responds with a greeting.
+
+* whoami
+  - Prints out your information, as recorded in articlebot's database.
+
+* track {TRELLO USER}
+  - Tells articlebot that you wish to follow card movements for {TRELLO USER} on Trello.
+  - e.g. "/track John Doe" would enable notifications for John Doe's Trello cards.
 
 ## Build Process
 

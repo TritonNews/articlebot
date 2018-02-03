@@ -37,10 +37,10 @@ impl EventHandler for SlackHandler {
                 let args: Vec<&str> = text.split(" ").collect();
                 let command = args[0];
 
-                if command == "/hello" {
+                if command == "hello" {
                     sender.send_message(channel, "Hello there.").expect("Slack sender error");
                 }
-                else if command == "/whoami" {
+                else if command == "whoami" {
                     let tracker = message.user.unwrap();
 
                     sender.send_message(channel, "Fetching user information ...").expect("Slack sender error");
@@ -61,7 +61,7 @@ impl EventHandler for SlackHandler {
                         sender.send_message(channel, "You are currently not tracking a Trello user.").expect("Slack sender error");
                     }
                 }
-                else if command == "/track" {
+                else if command == "track" {
                     let tracker = message.user.unwrap();
                     let tracking = (&args[1..]).join(" ");
 
