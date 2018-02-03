@@ -138,11 +138,11 @@ impl EventHandler for SlackHandler {
     }
 
     fn on_connect(&mut self, _cli: &RtmClient) {
-        println!("articlebot v{} connected to Slack.", std::env::var("CARGO_PKG_VERSION").unwrap());
+        println!("articlebot v{} connected to Slack.", env::var("CARGO_PKG_VERSION").unwrap());
     }
 
     fn on_close(&mut self, _cli: &RtmClient) {
-        println!("articlebot v{} disconnected from Slack.", std::env::var("CARGO_PKG_VERSION").unwrap());
+        println!("articlebot v{} disconnected from Slack.", env::var("CARGO_PKG_VERSION").unwrap());
     }
 }
 

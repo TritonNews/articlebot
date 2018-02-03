@@ -1,5 +1,5 @@
 use std::time::Duration;
-use std::thread;
+use std::{env, thread};
 use reqwest::Client;
 use reqwest::header::UserAgent;
 use reqwest::Result;
@@ -59,7 +59,7 @@ impl<L : BoardListener> BoardHandler<L> {
     }
 
     pub fn listen(&mut self) -> Result<()> {
-        println!("articlebot v{} listening for Trello updates.", std::env::var("CARGO_PKG_VERSION").unwrap());
+        println!("articlebot v{} listening for Trello updates.", env::var("CARGO_PKG_VERSION").unwrap());
         loop {
             let url = format!("{}/actions?filter={}&since={}&{}", self.http_url, self.board_listener.get_filtered_actions(), self.http_since_parameter, self.http_token_parameters);
 
