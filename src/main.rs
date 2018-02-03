@@ -37,8 +37,9 @@ impl EventHandler for SlackHandler {
                 let text : &str = &message.text.unwrap()[..];
                 let channel : &str = &message.channel.unwrap()[..];
 
-                let args: Vec<&str> = text.split(" ").collect();
+                let split: Vec<&str> = text.split(" ").collect();
                 let command = args[0];
+                let args = &args[1..];
 
                 let user = message.user.unwrap();
 
@@ -71,7 +72,7 @@ impl EventHandler for SlackHandler {
                 }
                 else if command == "track" {
                     let tracker = user;
-                    let tracking = (&args[1..]).join(" ");
+                    let tracking = args.join(" ");
 
                     // Slack collection in MongoDB (key: tracker id, other data: channel id, tracking name)
                     let slack_coll = self.db.collection("slack");
