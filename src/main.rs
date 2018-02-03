@@ -40,6 +40,27 @@ impl EventHandler for SlackHandler {
                 if command == "/hello" {
                     sender.send_message(&channel[..], "Hello there.").expect("Slack sender error");
                 }
+                else if command == "/whoami" {
+                    let tracker = message.user.unwrap();
+
+                    sender.send_message(&channel[..], "Fetching user information ...").expect("Slack sender error");
+
+                    // Slack collection in MongoDB (key: tracker id, other data: channel id, tracking name)
+                    let slack_coll = self.db.collection("slack");
+                    let slack_lookup = doc! {
+                        "uid": &tracker
+                    };
+
+                    if let Some(sdoc) = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document") {
+                        sender.send_message(&channel[..], &format!("You are {} on Slack.", tracker)[..]).expect("Slack sender error");
+                        sender.send_message(&channel[..], &format!("You are currently tracking \"{}\" on Trello.", sdoc.get_str("tracking").unwrap())[..])
+                            .expect("Slack sender error");
+                    }
+                    else {
+                        sender.send_message(&channel[..], &format!("You are {} on Slack.", tracker)[..]).expect("Slack sender error");
+                        sender.send_message(&channel[..], "You are currently not tracking a Trello user.").expect("Slack sender error");
+                    }
+                }
                 else if command == "/track" {
                     let tracker = message.user.unwrap();
                     let tracking = (&args[1..]).join(" ");
@@ -57,7 +78,7 @@ impl EventHandler for SlackHandler {
                     };
 
                     // Delete all previous records in the Slack and Trello collections if they exist
-                    if let Some(sdoc) = slack_coll.find_one_and_delete(slack_lookup, None).expect("Failed to delete document") {
+                    if let Some(sdoc) = slack_coll.find_one_and_delete(slack_lookup, None).expect("Failed to find and delete document") {
                         let trello_lookup_old = doc! {
                             "tracking": sdoc.get_str("tracking").unwrap()
                         };
