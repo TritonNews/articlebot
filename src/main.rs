@@ -12,8 +12,8 @@ extern crate chrono;
 mod trello;
 
 use std::{env, thread};
-use trello::BoardHandler;
-use slack::{Event, EventHandler, RtmClient, Message};
+use trello::{BoardHandler, BoardListener, Action};
+use slack::{Event, EventHandler, RtmClient, Message, Sender};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::{Database, ThreadedDatabase};
 use bson::Bson;
@@ -22,11 +22,11 @@ const MONGODB_HOSTNAME: &'static str = "localhost";
 const MONGODB_PORT: u16 = 27017;
 const MONGODB_DATABASE: &'static str = "articlebot";
 
-struct SlackHandler<'a> {
-    db: &'a Database
+struct SlackHandler {
+    db: Database
 }
 
-impl<'a> EventHandler for SlackHandler<'a> {
+impl EventHandler for SlackHandler {
     fn on_event(&mut self, cli: &RtmClient, event: Event) {
         match event {
             Event::Message(boxed_message) => {
@@ -115,6 +115,49 @@ impl<'a> EventHandler for SlackHandler<'a> {
     }
 }
 
+struct SlackBoardListener {
+    db: Database,
+    sender: Sender
+}
+
+impl BoardListener for SlackBoardListener {
+    fn on_action(&self, action : Action) {
+        // Make sure that we only capture when a card is moved between lists
+        if let Some(list_before) = action.data.get("listBefore") {
+            let list_after = action.data.get("listAfter").unwrap();
+            let card = action.data.get("card").unwrap();
+
+            let list_before_name = list_before.get("name").unwrap().as_str().unwrap();
+            let list_after_name = list_after.get("name").unwrap().as_str().unwrap();
+            let card_title = card.get("name").unwrap().as_str().unwrap();
+
+            let trello_coll = self.db.collection("trello");
+            let trello_lookup = doc! {
+                "name": &action.creator.full_name
+            };
+
+            // If any Slack user is tracking this Trello user, find all Slack DM channel IDs through MongoDB and send a message to each one
+            if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup), None).expect("Failed to find document") {
+                let trackers = tdoc.get_array("trackers").unwrap();
+
+                let slack_coll = self.db.collection("slack");
+
+                for tracker in trackers {
+                  let slack_lookup = doc! {
+                    "uid": tracker.as_str().unwrap()
+                  };
+                  // Tracker refers to a slack user that must exist
+                  let sdoc = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document").unwrap();
+                  let channel = sdoc.get_str("cid").unwrap();
+
+                  self.sender.send_message(channel, &format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name))
+                    .expect("Slack sender error");
+                }
+            }
+        }
+    }
+}
+
 fn open_database_connection() -> Database {
     return Client::connect(MONGODB_HOSTNAME, MONGODB_PORT).expect("MongoDB connection error").db(MONGODB_DATABASE);
 }
@@ -134,13 +177,17 @@ fn main() {
     thread::spawn(move || {
         let db = open_database_connection();
         let mut slack_handler = SlackHandler {
-            db: &db
+            db: db
         };
         slack_client.run(&mut slack_handler).expect("Slack client error");
     });
 
     // Connect to Trello (will block main thread)
     let db = open_database_connection();
-    let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, db, slack_sender);
+    let board_listener = SlackBoardListener {
+        db: db,
+        sender: slack_sender
+    };
+    let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, board_listener);
     board_handler.listen().expect("Event loop error");
 }
