@@ -63,7 +63,7 @@ impl<L : BoardListener> BoardHandler<L> {
         loop {
             let url = format!("{}/actions?filter={}&since={}&{}", self.http_url, self.board_listener.get_filtered_actions(), self.http_since_parameter, self.http_token_parameters);
 
-            info!("[TRELLO] Pinging board ...");
+            info!("Pinging board ...");
 
             let mut resp = self.http_client
                 .get(&url)
@@ -72,7 +72,7 @@ impl<L : BoardListener> BoardHandler<L> {
 
             let actions : Vec<Action> = resp.json()?;
 
-            info!("[TRELLO] {} actions since last update.", actions.iter().count());
+            info!("{} actions since last update.", actions.iter().count());
 
             for action in actions {
                 self.board_listener.on_action(action);
@@ -80,7 +80,7 @@ impl<L : BoardListener> BoardHandler<L> {
 
             self.http_since_parameter = Utc::now();
 
-            info!("[TRELLO] Thread sleeping for {} seconds ...", UPDATE_INTERVAL_SECONDS);
+            info!("Thread sleeping for {} seconds ...", UPDATE_INTERVAL_SECONDS);
 
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL_SECONDS));
         }

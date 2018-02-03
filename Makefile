@@ -1,3 +1,3 @@
 release:
 	cargo build --release
-	nohup cargo run &
+	RUST_LOG=info nohup cargo run &

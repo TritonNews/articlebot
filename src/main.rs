@@ -42,8 +42,8 @@ impl EventHandler for SlackHandler {
 
                 let user = message.user.unwrap();
 
-                info!("[SLACK] {}: {}", user, text);
-                info!("[SLACK] Interpreting as COMMAND={} ARGUMENTS={:?}", command, args);
+                info!("Message from {}: {}", user, text);
+                info!("Interpreting as COMMAND={} ARGUMENTS={:?}", command, args);
 
                 if command == "hello" {
                     sender.send_message(channel, "Hello there.").expect("Slack sender error");
@@ -144,11 +144,11 @@ impl EventHandler for SlackHandler {
     }
 
     fn on_connect(&mut self, _cli: &RtmClient) {
-        info!("[SLACK] articlebot v{} connected.", env::var("CARGO_PKG_VERSION").unwrap());
+        info!("v{} connected.", env::var("CARGO_PKG_VERSION").unwrap());
     }
 
     fn on_close(&mut self, _cli: &RtmClient) {
-        info!("[SLACK] articlebot v{} disconnected.", env::var("CARGO_PKG_VERSION").unwrap());
+        info!("v{} disconnected.", env::var("CARGO_PKG_VERSION").unwrap());
     }
 }
 
