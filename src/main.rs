@@ -37,9 +37,9 @@ impl EventHandler for SlackHandler {
                 let text : &str = &message.text.unwrap()[..];
                 let channel : &str = &message.channel.unwrap()[..];
 
-                let split: Vec<&str> = text.split(" ").collect();
-                let command = args[0];
-                let args = &args[1..];
+                let split_text: Vec<&str> = text.split(" ").collect();
+                let command = split_text[0];
+                let args = &split_text[1..];
 
                 let user = message.user.unwrap();
 
