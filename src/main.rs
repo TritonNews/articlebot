@@ -8,6 +8,9 @@ extern crate serde_json;
 extern crate slack;
 extern crate reqwest;
 extern crate chrono;
+#[macro_use]
+extern crate log;
+extern crate pretty_env_logger;
 
 mod trello;
 
@@ -37,13 +40,16 @@ impl EventHandler for SlackHandler {
                 let args: Vec<&str> = text.split(" ").collect();
                 let command = args[0];
 
-                println!("Received command \"{}\" parsed from raw text \"{}\"", command, text);
+                let user = message.user.unwrap();
+
+                info!("[SLACK] {}: {}", user, text);
+                info!("[SLACK] Interpreting as COMMAND={} ARGUMENTS={:?}", command, args);
 
                 if command == "hello" {
                     sender.send_message(channel, "Hello there.").expect("Slack sender error");
                 }
                 else if command == "whoami" {
-                    let tracker = message.user.unwrap();
+                    let tracker = user;
 
                     sender.send_message(channel, "Fetching user information ...").expect("Slack sender error");
 
@@ -54,17 +60,17 @@ impl EventHandler for SlackHandler {
                     };
 
                     if let Some(sdoc) = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document") {
-                        sender.send_message(channel, &format!("You are {} on Slack.", tracker)[..]).expect("Slack sender error");
+                        sender.send_message(channel, &format!("You are {} on Slack. This channel is {}.", tracker, channel)[..]).expect("Slack sender error");
                         sender.send_message(channel, &format!("You are currently tracking \"{}\" on Trello.", sdoc.get_str("tracking").unwrap())[..])
                             .expect("Slack sender error");
                     }
                     else {
-                        sender.send_message(channel, &format!("You are {} on Slack.", tracker)[..]).expect("Slack sender error");
+                        sender.send_message(channel, &format!("You are {} on Slack. This channel is {}.", tracker, channel)[..]).expect("Slack sender error");
                         sender.send_message(channel, "You are currently not tracking a Trello user.").expect("Slack sender error");
                     }
                 }
                 else if command == "track" {
-                    let tracker = message.user.unwrap();
+                    let tracker = user;
                     let tracking = (&args[1..]).join(" ");
 
                     // Slack collection in MongoDB (key: tracker id, other data: channel id, tracking name)
@@ -138,11 +144,11 @@ impl EventHandler for SlackHandler {
     }
 
     fn on_connect(&mut self, _cli: &RtmClient) {
-        println!("articlebot v{} connected to Slack.", env::var("CARGO_PKG_VERSION").unwrap());
+        info!("[SLACK] articlebot v{} connected.", env::var("CARGO_PKG_VERSION").unwrap());
     }
 
     fn on_close(&mut self, _cli: &RtmClient) {
-        println!("articlebot v{} disconnected from Slack.", env::var("CARGO_PKG_VERSION").unwrap());
+        info!("[SLACK] articlebot v{} disconnected.", env::var("CARGO_PKG_VERSION").unwrap());
     }
 }
 
@@ -198,6 +204,9 @@ fn open_database_connection() -> Database {
 }
 
 fn main() {
+    // Logging utilities
+    pretty_env_logger::init();
+
     // Get all environment variables
     let slack_api_key = env::var("SLACK_API_KEY").expect("Slack API key not found");
     let trello_api_key = env::var("TRELLO_API_KEY").expect("Trello API key not found");

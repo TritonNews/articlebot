@@ -20,7 +20,7 @@ Here is a list of valid commands:
 
 * track {TRELLO USER}
   - Tells articlebot that you wish to follow card movements for {TRELLO USER} on Trello.
-  - e.g. "/track John Doe" would enable notifications for John Doe's Trello cards.
+  - e.g. "track John Doe" would enable notifications for John Doe's Trello cards.
 
 ## Build Process
 

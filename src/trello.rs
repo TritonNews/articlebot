@@ -7,7 +7,7 @@ use serde_json::Value;
 use chrono::prelude::*;
 
 const USER_AGENT: &'static str = "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
-const UPDATE_INTERVAL_SECONDS: u64 = 600;
+const UPDATE_INTERVAL_SECONDS: u64 = 60;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,11 +59,11 @@ impl<L : BoardListener> BoardHandler<L> {
     }
 
     pub fn listen(&mut self) -> Result<()> {
-        println!("articlebot v{} listening for Trello updates.", env::var("CARGO_PKG_VERSION").unwrap());
+        info!("articlebot v{} listening for Trello updates.", env::var("CARGO_PKG_VERSION").unwrap());
         loop {
             let url = format!("{}/actions?filter={}&since={}&{}", self.http_url, self.board_listener.get_filtered_actions(), self.http_since_parameter, self.http_token_parameters);
 
-            println!("Pinging Trello board ...");
+            info!("[TRELLO] Pinging board ...");
 
             let mut resp = self.http_client
                 .get(&url)
@@ -72,7 +72,7 @@ impl<L : BoardListener> BoardHandler<L> {
 
             let actions : Vec<Action> = resp.json()?;
 
-            println!("{} actions since last update.", actions.iter().count());
+            println!("[TRELLO] {} actions since last update.", actions.iter().count());
 
             for action in actions {
                 self.board_listener.on_action(action);
@@ -80,7 +80,7 @@ impl<L : BoardListener> BoardHandler<L> {
 
             self.http_since_parameter = Utc::now();
 
-            println!("Update thread sleeping for {} seconds ...", UPDATE_INTERVAL_SECONDS);
+            info!("[TRELLO] Thread sleeping for {} seconds ...", UPDATE_INTERVAL_SECONDS);
 
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL_SECONDS));
         }
