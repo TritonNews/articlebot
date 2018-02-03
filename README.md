@@ -4,7 +4,7 @@
   <img src="https://github.com/TritonNews/articlebot/raw/master/icon.png"/>
 </p>
 
-This bot notifies editors on Slack when their corresponding Trello articles/cards have been moved between lists. It is written in Rust.
+This bot notifies editors on Slack when their corresponding Trello articles/cards have been moved between lists. It is written entirely in Rust (the best programming language ever). The bot currently lives as a background task on a DigitalOcean Droplet instance, but we will be looking to adjust our hosting solution in the future.
 
 ## Interacting with _articlebot_
 
