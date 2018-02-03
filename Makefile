@@ -1,5 +1,5 @@
 test:
-	cargo build
+	cargo test
 	cargo run
 
 release:
