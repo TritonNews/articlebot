@@ -59,19 +59,28 @@ impl<L : BoardListener> BoardHandler<L> {
     }
 
     pub fn listen(&mut self) -> Result<()> {
+        println!("articlebot v{} listening for Trello updates.", std::env::var("CARGO_PKG_VERSION").unwrap());
         loop {
+            let url = format!("{}/actions?filter={}&since={}&{}", self.http_url, self.board_listener.get_filtered_actions(), self.http_since_parameter, self.http_token_parameters);
+
+            println!("Pinging Trello board ...");
+
             let mut resp = self.http_client
-                .get(&format!("{}/actions?filter={}&since={}&{}", self.http_url, self.board_listener.get_filtered_actions(), self.http_since_parameter, self.http_token_parameters))
+                .get(&url)
                 .header(UserAgent::new(USER_AGENT.to_string()))
                 .send()?;
 
             let actions : Vec<Action> = resp.json()?;
+
+            println!("{} actions since last update.", actions.iter().count());
 
             for action in actions {
                 self.board_listener.on_action(action);
             }
 
             self.http_since_parameter = Utc::now();
+
+            println!("Update thread sleeping for {} seconds ...", UPDATE_INTERVAL_SECONDS);
 
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL_SECONDS));
         }

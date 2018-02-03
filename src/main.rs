@@ -37,6 +37,8 @@ impl EventHandler for SlackHandler {
                 let args: Vec<&str> = text.split(" ").collect();
                 let command = args[0];
 
+                println!("Received command \"{}\" parsed from raw text \"{}\"", command, text);
+
                 if command == "hello" {
                     sender.send_message(channel, "Hello there.").expect("Slack sender error");
                 }
@@ -135,12 +137,12 @@ impl EventHandler for SlackHandler {
         }
     }
 
-    fn on_close(&mut self, _cli: &RtmClient) {
-        println!("articlebot v{} disconnecting ...", std::env::var("CARGO_PKG_VERSION").unwrap());
+    fn on_connect(&mut self, _cli: &RtmClient) {
+        println!("articlebot v{} connected to Slack.", std::env::var("CARGO_PKG_VERSION").unwrap());
     }
 
-    fn on_connect(&mut self, _cli: &RtmClient) {
-        println!("articlebot v{} connecting ...", std::env::var("CARGO_PKG_VERSION").unwrap());
+    fn on_close(&mut self, _cli: &RtmClient) {
+        println!("articlebot v{} disconnected from Slack.", std::env::var("CARGO_PKG_VERSION").unwrap());
     }
 }
 
