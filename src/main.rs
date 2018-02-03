@@ -10,7 +10,7 @@ extern crate reqwest;
 extern crate chrono;
 #[macro_use]
 extern crate log;
-extern crate env_logger;
+extern crate pretty_env_logger;
 
 mod trello;
 
@@ -205,7 +205,7 @@ fn open_database_connection() -> Database {
 
 fn main() {
     // Logging utilities
-    env_logger::init();
+    pretty_env_logger::init();
 
     // Get all environment variables
     let slack_api_key = env::var("SLACK_API_KEY").expect("Slack API key not found");
