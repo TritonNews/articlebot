@@ -68,9 +68,11 @@ impl BoardListener for RelayBoardListener {
                         let sdoc = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document").unwrap();
                         let channel = sdoc.get_str("cid").unwrap();
 
-                        // Send the message by passing it to our mpsc sender and incrementing our buffer count
+                        // Send the message by passing it to our mpsc sender
                         let message = format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name);
                         self.buffer_tx.send(format!("{}|{}", channel, message)).unwrap();
+
+                        // Increment the buffer count to notify the webhook that a flush needs to happen
                         let mut message_count = self.buffer_count.lock().unwrap();
                         *message_count += 1;
                     }

@@ -201,24 +201,27 @@ fn main() {
     thread::spawn(move || {
         let slack = Slack::new(&slack_webhook[..]).unwrap();
         loop {
-            let mut message_count = webhook_buffer_count.lock().unwrap();
 
-            info!("{} messages in buffer. Considering a flush ...", *message_count);
+            {
+                let mut message_count = webhook_buffer_count.lock().unwrap();
 
-            if *message_count > 0 {
-                let payload = PayloadBuilder::new()
-                  .text(&format!("articlebot is now flushing {} messages in its internal mpsc channel.", *message_count)[..])
-                  .channel("#articlebot-reserved")
-                  .build()
-                  .unwrap();
+                info!("{} messages in buffer. Considering a flush ...", *message_count);
 
-                let res = slack.send(&payload);
-                match res {
-                    Ok(()) => info!("Sent message to #articlebot-reserved."),
-                    Err(e) => error!("Error flushing message buffer: {:?}", e)
+                if *message_count > 0 {
+                    let payload = PayloadBuilder::new()
+                      .text(&format!("articlebot is now flushing {} messages in its internal mpsc channel.", *message_count)[..])
+                      .channel("#articlebot-reserved")
+                      .build()
+                      .unwrap();
+
+                    let res = slack.send(&payload);
+                    match res {
+                        Ok(()) => info!("Sent message to #articlebot-reserved."),
+                        Err(e) => error!("Error flushing message buffer: {:?}", e)
+                    }
+
+                    *message_count = 0;
                 }
-
-                *message_count = 0;
             }
 
             thread::sleep(Duration::from_secs(FLUSH_MESSAGES_DELAY_SECONDS));
