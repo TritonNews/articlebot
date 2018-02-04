@@ -89,7 +89,7 @@ impl EventHandler for SlackHandler {
                     // Delete all previous records in the Slack and Trello collections if they exist
                     if let Some(sdoc) = slack_coll.find_one_and_delete(slack_lookup, None).expect("Failed to find and delete document") {
                         let trello_lookup_old = doc! {
-                            "tracking": sdoc.get_str("tracking").unwrap()
+                            "name": sdoc.get_str("tracking").unwrap()
                         };
                         if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup_old.clone()), None).expect("Failed to find document") {
                             // Remove our current tracker from where it was originally tracking
