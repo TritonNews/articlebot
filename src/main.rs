@@ -181,7 +181,7 @@ impl BoardListener for SlackBoardListener {
 
             let card_members = get_card_members(card_id, &self.http_token_parameters[..], &self.http_client).expect("Trello card error");
 
-            info!("Card \"{}\" was moved from {} to {}.", card_title, list_before_name, list_after_name);
+            info!("Card \"{}\" was moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name);
             info!("Card has {} members associated with it.", card_members.iter().count());
 
             for member in card_members {
