@@ -37,14 +37,34 @@ impl CommandHandler {
         if command == "hello" || command == "hi" {
             sender.send_message(channel, "Hello there.")?;
         }
-        else if command == "version" || command == "v" {
+        else if command == "version" {
             sender.send_message(channel, &format!("Running v{}.", env::var("CARGO_PKG_VERSION")?)[..])?;
         }
+        else if command == "tutorial" {
+            sender.send_message(channel, "Hi, I'm articlebot, a utility designed to notify you whenever your Trello cards have been moved.")?;
+            sender.send_message(channel, "You can interact with me through commands. Commands are given in the form [COMMAND] [ARGUMENTS].")?;
+            sender.send_message(channel, "[COMMAND] is usually a single word, specifying some action. I intrepret the first word you type as your command.")?;
+            sender.send_message(channel, "[ARGUMENTS] is whatever comes after your command. Some commands require you to specify arguments.")?;
+            sender.send_message(channel, "An valid example command is *track _John Doe_*. In this case, *track* is the command and *_John Doe_* are the arguments.")?;
+            sender.send_message(channel, "Please type in *help* for a list of commands.")?;
+        }
         else if command == "help" {
-
+            sender.send_message(channel, "If you have not already, type in *tutorial* for an overview of my command system.")?;
+            sender.send_message(channel, "Here is a list of valid commands:")?;
+            sender.send_message(channel, "*hello/hi*")?;
+            sender.send_message(channel, "\tPrints out nice greeting.")?;
+            sender.send_message(channel, "*version*")?;
+            sender.send_message(channel, "\tPrints out articlebot's version number.")?;
+            sender.send_message(channel, "*tutorial*")?;
+            sender.send_message(channel, "\tPrints out an overview of how commands work.")?;
+            sender.send_message(channel, "*help*")?;
+            sender.send_message(channel, "\tPrints out a list of valid commands.")?;
+            sender.send_message(channel, "*tracking*")?;
+            sender.send_message(channel, "\tTells you who you are following on Trello.")?;
+            sender.send_message(channel, "*track [PERSON NAME]*")?;
+            sender.send_message(channel, "\tTells articlebot that you wish to follow card movements for [PERSON NAME] on Trello.")?;
         }
         else if command == "tracking" {
-            sender.send_message(channel, "Fetching user information ...")?;
             if let Some(sdoc) = self.db.collection("slack").find_one(Some(doc! {
                 "uid": user
             }), None)? {
@@ -120,7 +140,8 @@ impl CommandHandler {
             sender.send_message(channel, &format!("You will now be notified when {}'s articles are moved in Trello.", tracking)[..])?;
         }
         else {
-            sender.send_message(channel, &format!("I did not understand your command \"{}\".", command)[..])?;
+            sender.send_message(channel, &format!("I did not understand your command *{}*.", command)[..])?;
+            sender.send_message(channel, "Try typing in *help* to see a list of available commands.")?;
         }
 
         Ok(())
