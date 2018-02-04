@@ -12,7 +12,7 @@ const UPDATE_INTERVAL_SECONDS: u64 = 60;
 
 pub trait BoardListener {
     fn get_filtered_actions(&self) -> &str;
-    fn on_action(&self, action : Action);
+    fn on_action(&self, action : &Action);
 }
 
 pub struct BoardHandler<L> {
@@ -52,7 +52,7 @@ impl<L : BoardListener> BoardHandler<L> {
 
             info!("{} actions since last update.", actions.iter().count());
 
-            for action in actions {
+            for action in actions.iter().rev() {
                 self.board_listener.on_action(action);
             }
 

@@ -168,7 +168,7 @@ impl BoardListener for SlackBoardListener {
         return &"updateCard";
     }
 
-    fn on_action(&self, action : Action) {
+    fn on_action(&self, action : &Action) {
         // Make sure that we only capture when a card is moved between lists
         if let Some(list_before) = action.data.get("listBefore") {
             let list_after = action.data.get("listAfter").unwrap();
