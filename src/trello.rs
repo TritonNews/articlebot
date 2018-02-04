@@ -40,9 +40,10 @@ impl<L : BoardListener> BoardHandler<L> {
     pub fn listen(&mut self) -> Result<()> {
         info!("v{} listening for updates.", env::var("CARGO_PKG_VERSION").unwrap());
         loop {
-            let url = format!("{}/actions?filter={}&since={}&{}", self.http_url, self.board_listener.get_filtered_actions(), self.http_since_parameter, self.http_token_parameters);
+            info!("Pinging board ...");
 
-            info!("Pinging board ... {}", url);
+            let url = format!("{}/actions?filter={}&since={}&{}",
+                self.http_url, self.board_listener.get_filtered_actions(), self.http_since_parameter, self.http_token_parameters);
 
             let mut resp = self.http_client
                 .get(&url)
@@ -51,15 +52,13 @@ impl<L : BoardListener> BoardHandler<L> {
 
             let actions : Vec<Action> = resp.json()?;
 
-            info!("{} actions since last update.", actions.iter().count());
+            info!("Found {} actions since last update.", actions.iter().count());
 
             for action in actions.iter().rev() {
                 self.board_listener.on_action(action);
             }
 
             self.http_since_parameter = Utc::now();
-
-            info!("Thread sleeping for {} seconds ...", UPDATE_INTERVAL_SECONDS);
 
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL_SECONDS));
         }
@@ -68,13 +67,17 @@ impl<L : BoardListener> BoardHandler<L> {
 
 // TODO: Remove this gimmicky solution and replace with a CardHandler
 pub fn get_card_members(card_id: &str, http_token_parameters: &str, http_client: &Client) -> Result<Vec<Member>> {
-    let card_url = format!("{}/cards/{}?fields=all&{}", API_URL, card_id, http_token_parameters);
-    info!("Fetching card ... {}", card_url);
+    info!("Fetching card ... {}", card_id);
+
+    let card_url = format!("{}/cards/{}?fields=all&{}",
+        API_URL, card_id, http_token_parameters);
     let mut card_resp = http_client
         .get(&card_url)
         .header(UserAgent::new(USER_AGENT.to_string()))
         .send()?;
     let card : Card = card_resp.json()?;
+
+    info!("Fetching card members ...");
 
     let mut members = Vec::new();
     for member_id in card.id_members {
@@ -88,9 +91,10 @@ pub fn get_card_members(card_id: &str, http_token_parameters: &str, http_client:
         members.push(member);
     }
 
-    let creator_url = format!("{}/cards/{}?fields=id&actions=createCard&action_fields=idMemberCreator,memberCreator&action_memberCreator_fields=all&{}",
+    info!("Fetching card creator ...");
+
+    let creator_url = format!("{}/cards/{}?fields=id&actions=createCard,copyCard&action_fields=idMemberCreator,memberCreator&action_memberCreator_fields=all&{}",
         API_URL, card_id, http_token_parameters);
-    info!("Getting card creator ... {}", creator_url);
     let mut creator_resp = http_client
         .get(&creator_url)
         .header(UserAgent::new(USER_AGENT.to_string()))
