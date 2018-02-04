@@ -14,7 +14,6 @@ pub struct Card {
 #[serde(rename_all = "camelCase")]
 pub struct Member {
     pub id: String,
-    pub avatar_hash: String,
     pub full_name: String,
     pub initials: String,
     pub username: String
