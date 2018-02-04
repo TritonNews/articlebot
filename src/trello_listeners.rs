@@ -64,6 +64,7 @@ impl BoardListener for RelayBoardListener {
                       let sdoc = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document").unwrap();
                       let channel = sdoc.get_str("cid").unwrap();
 
+                      self.sender.send_typing(channel);
                       self.sender.send_message(channel, &format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name))
                         .expect("Slack sender error");
                     }
