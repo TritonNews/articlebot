@@ -38,8 +38,6 @@ impl<L : ActionListener> BoardHandler<L> {
     pub fn listen(&mut self) -> Result<(), Box<Error>> {
         info!("v{} listening for updates.", env::var("CARGO_PKG_VERSION").unwrap());
         loop {
-            info!("Pinging board ...");
-
             let url = format!("{}/actions?filter={}&since={}&{}",
                 self.http_url, self.action_listener.get_filtered_actions(), self.http_since_parameter, self.http_token_parameters);
 
