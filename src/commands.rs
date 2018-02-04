@@ -58,7 +58,7 @@ impl CommandHandler {
             sender.send_message(channel, "`tracking` displays who you are following on Trello.")?;
             sender.send_message(channel,
                 "`track [USERNAME]` tells articlebot that you wish to follow card movements for [USERNAME] on Trello. \
-                [USERNAME] must be the *exact username* of whoever you want to follow on Trello.";
+                [USERNAME] must be the *exact username* of whoever you want to follow on Trello."
             )?;
 
         }
