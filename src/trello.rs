@@ -9,7 +9,7 @@ use serde_json::{Value, from_value};
 
 const API_URL: &'static str = "https://api.trello.com/1";
 const USER_AGENT: &'static str = "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
-const UPDATE_INTERVAL_SECONDS: u64 = 60;
+const UPDATE_INTERVAL_SECONDS: u64 = 30;
 
 pub trait BoardListener {
     fn get_filtered_actions(&self) -> &str;

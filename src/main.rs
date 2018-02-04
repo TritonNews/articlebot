@@ -194,7 +194,6 @@ impl BoardListener for SlackBoardListener {
                 // If any Slack user is tracking this Trello user, find all Slack DM channel IDs through MongoDB and send a message to each one
                 if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup), None).expect("Failed to find document") {
                     let trackers = tdoc.get_array("trackers").unwrap();
-                    info!("Member is being tracked by {} Slack users.", trackers.iter().count());
 
                     let slack_coll = self.db.collection("slack");
 
@@ -206,14 +205,9 @@ impl BoardListener for SlackBoardListener {
                       let sdoc = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document").unwrap();
                       let channel = sdoc.get_str("cid").unwrap();
 
-                      info!("Sending message to {} using channel {} ...", tracker.as_str().unwrap(), channel);
-
                       self.sender.send_message(channel, &format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name))
                         .expect("Slack sender error");
                     }
-                }
-                else {
-                    info!("Member is not being tracked.");
                 }
             }
         }
@@ -240,21 +234,22 @@ fn main() {
 
     // Offload the Slack message receiver/client to its own thread so it doesn't block the main thread
     thread::spawn(move || {
+
+        // Connect to Trello (will block main thread)
         let db = open_database_connection();
-        let mut slack_handler = SlackHandler {
-            db: db
+        let board_listener = SlackBoardListener {
+            db: db,
+            sender: slack_sender,
+            http_token_parameters: format!("key={}&token={}", &trello_api_key, &trello_oauth_token).to_string(),
+            http_client: ReqwestClient::new()
         };
-        slack_client.run(&mut slack_handler).expect("Slack client error");
+        let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, board_listener);
+        board_handler.listen().expect("Event loop error");
     });
 
-    // Connect to Trello (will block main thread)
     let db = open_database_connection();
-    let board_listener = SlackBoardListener {
-        db: db,
-        sender: slack_sender,
-        http_token_parameters: format!("key={}&token={}", &trello_api_key, &trello_oauth_token).to_string(),
-        http_client: ReqwestClient::new()
+    let mut slack_handler = SlackHandler {
+        db: db
     };
-    let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, board_listener);
-    board_handler.listen().expect("Event loop error");
+    slack_client.run(&mut slack_handler).expect("Slack client error");
 }
