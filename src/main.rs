@@ -21,6 +21,7 @@ use std::{env, thread};
 use std::time::Duration;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
+use std::sync::{Mutex, Arc};
 
 use trello::BoardHandler;
 use trello_listeners::RelayBoardListener;
@@ -34,7 +35,7 @@ use bson::Bson;
 const MONGODB_HOSTNAME: &'static str = "localhost";
 const MONGODB_PORT: u16 = 27017;
 const MONGODB_DATABASE: &'static str = "articlebot";
-const FLUSH_MESSAGES_DELAY_SECONDS: u64 = 30;
+const FLUSH_MESSAGES_DELAY_SECONDS: u64 = 600;
 
 struct SlackHandler {
     db: Database,
@@ -43,7 +44,6 @@ struct SlackHandler {
 
 impl EventHandler for SlackHandler {
     fn on_event(&mut self, cli: &RtmClient, event: Event) {
-        info!("Event occurred: {:?}", event);
         let sender = cli.sender();
         if let Event::Message(boxed_message) = event {
             if let Message::Standard(message) = *boxed_message {
@@ -193,25 +193,29 @@ fn main() {
     let trello_oauth_token = env::var("TRELLO_OAUTH_TOKEN").expect("Trello OAuth token not found");
     let trello_board_id = env::var("TRELLO_BOARD_ID").expect("Trello board ID not found");
 
-    // Create shared Slack utilities
-    let slack_client = RtmClient::login(&slack_api_key).expect("Slack connection error");
-
     let (tx, rx) = mpsc::channel();
+    let buffer_count = Arc::new(Mutex::new(0));
 
     // Slack webhook occasionally sends messages to itself to flush message buffer
+    let webhook_buffer_count = Arc::clone(&buffer_count);
     thread::spawn(move || {
         loop {
-            let slack = Slack::new(&slack_webhook[..]).unwrap();
-            let p = PayloadBuilder::new()
-              .text("Flushing message buffer ...")
-              .channel("#articlebot-reserved")
-              .build()
-              .unwrap();
+            let mut message_count = webhook_buffer_count.lock().unwrap();
+            if *message_count > 0 {
+                let slack = Slack::new(&slack_webhook[..]).unwrap();
+                let p = PayloadBuilder::new()
+                  .text(&format!("articlebot is now flushing {} messages in its internal mpsc channel.", *message_count)[..])
+                  .channel("#articlebot-reserved")
+                  .build()
+                  .unwrap();
 
-            let res = slack.send(&p);
-            match res {
-                Ok(()) => info!("Flushed message buffer by sending message to self."),
-                Err(e) => error!("Error flushing message buffer: {:?}", e)
+                let res = slack.send(&p);
+                match res {
+                    Ok(()) => info!("Sent message to #articlebot-reserved."),
+                    Err(e) => error!("Error flushing message buffer: {:?}", e)
+                }
+
+                *message_count = 0;
             }
 
             thread::sleep(Duration::from_secs(FLUSH_MESSAGES_DELAY_SECONDS));
@@ -219,10 +223,11 @@ fn main() {
     });
 
     // Offload the Trello updater to its own thread so it doesn't block the main thread
+    let trello_buffer_count = Arc::clone(&buffer_count);
     thread::spawn(move || {
         // Connect to Trello (will block main thread)
         let db = open_database_connection();
-        let board_listener = RelayBoardListener::new(db, tx, &trello_api_key, &trello_oauth_token);
+        let board_listener = RelayBoardListener::new(db, tx, trello_buffer_count, &trello_api_key, &trello_oauth_token);
         let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, board_listener);
         board_handler.listen().expect("Event loop error");
     });
@@ -233,5 +238,5 @@ fn main() {
         db: db,
         rx: rx
     };
-    slack_client.run(&mut slack_handler).expect("Slack client error");
+    RtmClient::login_and_run(&slack_api_key, &mut slack_handler).expect("Slack client error");
 }

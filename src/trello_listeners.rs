@@ -1,22 +1,25 @@
+use std::sync::mpsc::Sender;
+use std::sync::{Mutex, Arc};
 
 use trello::{BoardListener, get_card, get_card_members};
 use trello_models::Action;
-use std::sync::mpsc::Sender;
 use mongodb::db::{Database, ThreadedDatabase};
 use reqwest::Client;
 
 pub struct RelayBoardListener {
     db: Database,
-    tx: Sender<String>,
+    buffer_tx: Sender<String>,
+    buffer_count: Arc<Mutex<u8>>,
     http_token_parameters: String,
     http_client: Client
 }
 
 impl RelayBoardListener {
-    pub fn new(db : Database, tx : Sender<String>, trello_api_key : &str, trello_oauth_token : &str) -> RelayBoardListener {
+    pub fn new(db : Database, buffer_tx : Sender<String>, buffer_count : Arc<Mutex<u8>>, trello_api_key : &str, trello_oauth_token : &str) -> RelayBoardListener {
         RelayBoardListener {
             db: db,
-            tx: tx,
+            buffer_tx: buffer_tx,
+            buffer_count: buffer_count,
             http_token_parameters: format!("key={}&token={}", trello_api_key, trello_oauth_token).to_string(),
             http_client: Client::new()
         }
@@ -57,15 +60,19 @@ impl BoardListener for RelayBoardListener {
                     let slack_coll = self.db.collection("slack");
 
                     for tracker in trackers {
-                      let slack_lookup = doc! {
-                        "uid": tracker.as_str().unwrap()
-                      };
-                      // Tracker refers to a slack user that must exist
-                      let sdoc = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document").unwrap();
-                      let channel = sdoc.get_str("cid").unwrap();
+                        let slack_lookup = doc! {
+                            "uid": tracker.as_str().unwrap()
+                        };
 
-                      let message = format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name);
-                      self.tx.send(format!("{}|{}", channel, message)).unwrap();
+                        // Tracker refers to a slack user that must exist
+                        let sdoc = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document").unwrap();
+                        let channel = sdoc.get_str("cid").unwrap();
+
+                        // Send the message by passing it to our mpsc sender and incrementing our buffer count
+                        let message = format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name);
+                        self.buffer_tx.send(format!("{}|{}", channel, message)).unwrap();
+                        let mut message_count = self.buffer_count.lock().unwrap();
+                        *message_count += 1;
                     }
                 }
             }
