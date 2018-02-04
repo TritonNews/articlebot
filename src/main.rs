@@ -16,7 +16,7 @@ mod trello;
 mod trello_models;
 
 use std::{env, thread};
-use trello::{BoardHandler, BoardListener, get_card_members};
+use trello::{BoardHandler, BoardListener, get_card, get_card_members};
 use trello_models::Action;
 use slack::{Event, EventHandler, RtmClient, Message, Sender};
 use reqwest::Client as ReqwestClient;
@@ -171,15 +171,14 @@ impl BoardListener for SlackBoardListener {
     fn on_action(&self, action : &Action) {
         // Make sure that we only capture when a card is moved between lists
         if let Some(list_before) = action.data.get("listBefore") {
-            let list_after = action.data.get("listAfter").unwrap();
-            let card = action.data.get("card").unwrap();
+            let card = get_card(action.data.get("card").unwrap().get("id").unwrap().as_str().unwrap(),
+                &self.http_token_parameters[..], &self.http_client).expect("Trello card error");
+            let card_members = get_card_members(&card, &self.http_token_parameters[..], &self.http_client).expect("Trello card error");
+            let card_title = card.name;
 
             let list_before_name = list_before.get("name").unwrap().as_str().unwrap();
+            let list_after = action.data.get("listAfter").unwrap();
             let list_after_name = list_after.get("name").unwrap().as_str().unwrap();
-            let card_title = card.get("name").unwrap().as_str().unwrap();
-            let card_id = card.get("id").unwrap().as_str().unwrap();
-
-            let card_members = get_card_members(card_id, &self.http_token_parameters[..], &self.http_client).expect("Trello card error");
 
             info!("Card \"{}\" was moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name);
 

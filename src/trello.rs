@@ -65,8 +65,7 @@ impl<L : BoardListener> BoardHandler<L> {
     }
 }
 
-// TODO: Remove this gimmicky solution and replace with a CardHandler
-pub fn get_card_members(card_id: &str, http_token_parameters: &str, http_client: &Client) -> Result<Vec<Member>> {
+pub fn get_card(card_id: &str, http_token_parameters: &str, http_client: &Client) -> Result<Card> {
     info!("Fetching card ... {}", card_id);
 
     let card_url = format!("{}/cards/{}?fields=all&{}",
@@ -77,10 +76,14 @@ pub fn get_card_members(card_id: &str, http_token_parameters: &str, http_client:
         .send()?;
     let card : Card = card_resp.json()?;
 
+    Ok(card)
+}
+
+pub fn get_card_members(card: &Card, http_token_parameters: &str, http_client: &Client) -> Result<Vec<Member>> {
     info!("Fetching card members ...");
 
     let mut members = Vec::new();
-    for member_id in card.id_members {
+    for member_id in card.id_members.clone() {
         let member_url = format!("{}/members/{}?fields=all&{}", API_URL, member_id, http_token_parameters);
         let mut member_resp = http_client
             .get(&member_url)
@@ -94,9 +97,7 @@ pub fn get_card_members(card_id: &str, http_token_parameters: &str, http_client:
     info!("Fetching card creator ...");
 
     let creator_url = format!("{}/cards/{}?fields=id&actions=createCard,copyCard&action_fields=idMemberCreator,memberCreator&action_memberCreator_fields=all&{}",
-        API_URL, card_id, http_token_parameters);
-
-    debug!("{}", creator_url);
+        API_URL, card.id, http_token_parameters);
 
     let mut creator_resp = http_client
         .get(&creator_url)
