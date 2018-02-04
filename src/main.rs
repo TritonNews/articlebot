@@ -149,6 +149,9 @@ impl EventHandler for SlackHandler {
                         .expect("Slack sender error");
                 }
             }
+            else if let Message::BotMessage(message) = *boxed_message {
+
+            }
         }
     }
 
