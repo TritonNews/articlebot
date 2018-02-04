@@ -35,7 +35,7 @@ use bson::Bson;
 const MONGODB_HOSTNAME: &'static str = "localhost";
 const MONGODB_PORT: u16 = 27017;
 const MONGODB_DATABASE: &'static str = "articlebot";
-const FLUSH_MESSAGES_DELAY_SECONDS: u64 = 600;
+const FLUSH_MESSAGES_DELAY_SECONDS: u64 = 30;
 
 struct SlackHandler {
     db: Database,
