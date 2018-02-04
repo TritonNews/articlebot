@@ -8,9 +8,9 @@ This bot notifies editors on Slack when their corresponding Trello articles/card
 
 ## Interacting with _articlebot_
 
-You can interact with articlebot through commands. Commands are given in the form **[COMMAND] [ARGUMENTS]** where [COMMAND] is the first word in your query and [ARGUMENTS] is whatever comes after it.
+You can interact with articlebot through commands. Commands are given in the form [COMMAND] [ARGUMENTS] where [COMMAND] is the first word in your query and [ARGUMENTS] is whatever comes after it.
 
-An example of a valid command would be **track johndoe42**. In this case, the command is **track** and the arguments are **johndoe42**.
+An example of a valid command would be `track johndoe42`. In this case, the command is `track` and the arguments are **johndoe42**.
 
 Here is a list of valid commands:
 
