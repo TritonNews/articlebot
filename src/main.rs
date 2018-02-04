@@ -11,15 +11,18 @@ extern crate serde_json;
 #[macro_use(bson, doc)]
 extern crate bson;
 extern crate mongodb;
+extern crate slack_hook;
 
 mod trello;
 mod trello_models;
 mod trello_listeners;
 
 use std::{env, thread};
+use std::time::Duration;
 use trello::BoardHandler;
 use trello_listeners::RelayBoardListener;
 use slack::{Event, EventHandler, RtmClient, Message};
+use slack_hook::{Slack, PayloadBuilder};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::{Database, ThreadedDatabase};
 use bson::Bson;
@@ -27,6 +30,7 @@ use bson::Bson;
 const MONGODB_HOSTNAME: &'static str = "localhost";
 const MONGODB_PORT: u16 = 27017;
 const MONGODB_DATABASE: &'static str = "articlebot";
+const FLUSH_MESSAGES_DELAY_SECONDS: u64 = 30;
 
 struct SlackHandler {
     db: Database
@@ -166,6 +170,7 @@ fn main() {
 
     // Get all environment variables
     let slack_api_key = env::var("SLACK_API_KEY").expect("Slack API key not found");
+    let slack_webhook = env::var("SLACK_WEBHOOK").expect("Slack webhook not found");
     let trello_api_key = env::var("TRELLO_API_KEY").expect("Trello API key not found");
     let trello_oauth_token = env::var("TRELLO_OAUTH_TOKEN").expect("Trello OAuth token not found");
     let trello_board_id = env::var("TRELLO_BOARD_ID").expect("Trello board ID not found");
@@ -174,7 +179,28 @@ fn main() {
     let slack_client = RtmClient::login(&slack_api_key).expect("Slack connection error");
     let slack_sender = slack_client.sender().clone();
 
-    // Offload the Slack message receiver/client to its own thread so it doesn't block the main thread
+    // Slack webhook occasionally sends messages to itself to flush message buffer
+    thread::spawn(move || {
+        loop {
+            let slack = Slack::new(&slack_webhook[..]).unwrap();
+            let p = PayloadBuilder::new()
+              .text("Flushing message buffer ...")
+              .channel("@articlebot")
+              .username("articlebot")
+              .build()
+              .unwrap();
+
+            let res = slack.send(&p);
+            match res {
+                Ok(()) => info!("Successively flushed message buffer by sending message to self"),
+                Err(e) => error!("Error flushing message buffer: {:?}", e)
+            }
+
+            thread::sleep(Duration::from_secs(FLUSH_MESSAGES_DELAY_SECONDS));
+        }
+    });
+
+    // Offload the Trello updater to its own thread so it doesn't block the main thread
     thread::spawn(move || {
         // Connect to Trello (will block main thread)
         let db = open_database_connection();
@@ -183,6 +209,7 @@ fn main() {
         board_handler.listen().expect("Event loop error");
     });
 
+    // Slack event handler
     let db = open_database_connection();
     let mut slack_handler = SlackHandler {
         db: db
