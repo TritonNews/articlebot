@@ -37,10 +37,13 @@ impl CommandHandler {
         if command == "hello" || command == "hi" {
             sender.send_message(channel, "Hello there.")?;
         }
-        else if command == "version" {
+        else if command == "version" || command == "v" {
             sender.send_message(channel, &format!("Running v{}.", env::var("CARGO_PKG_VERSION")?)[..])?;
         }
-        else if command == "whoami" {
+        else if command == "help" {
+
+        }
+        else if command == "tracking" {
             sender.send_message(channel, "Fetching user information ...")?;
             if let Some(sdoc) = self.db.collection("slack").find_one(Some(doc! {
                 "uid": user
