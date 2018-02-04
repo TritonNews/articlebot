@@ -45,22 +45,18 @@ impl CommandHandler {
             sender.send_message(channel, "You can interact with me through commands. Commands are given in the form [COMMAND] [ARGUMENTS].")?;
             sender.send_message(channel, "[COMMAND] is usually a single word, specifying some action. I intrepret the first word you type as your command.")?;
             sender.send_message(channel, "[ARGUMENTS] is whatever comes after your command. Some commands require you to specify arguments.")?;
-            sender.send_message(channel, "An valid example command is `track John Doe`. In this case, `track` is the command and `John Doe` are the arguments.")?;
+            sender.send_message(channel, "An valid example command is `track johndoe42`. In this case, `track` is the command and `johndoe42` is the argument.")?;
             sender.send_message(channel, "Please type in `help` for a list of commands.")?;
         }
         else if command == "help" {
             sender.send_message(channel, "If you have not already, type in `tutorial` for an overview of the command system.")?;
             sender.send_message(channel, "Here is a list of valid commands and their descriptions:")?;
-            sender.send_message(channel, "`hello`/`hi` displays a nice greeting.")?;
+            sender.send_message(channel, "`hello` and `hi` display a nice greeting.")?;
             sender.send_message(channel, "`version` displays articlebot's version number.")?;
             sender.send_message(channel, "`tutorial` displays an overview of how commands work.")?;
             sender.send_message(channel, "`help` displays a list of valid commands.")?;
             sender.send_message(channel, "`tracking` displays who you are following on Trello.")?;
-            sender.send_message(channel,
-                "`track [USERNAME]` tells articlebot that you wish to follow card movements for [USERNAME] on Trello. \
-                [USERNAME] must be the *exact username* of whoever you want to follow on Trello."
-            )?;
-
+            sender.send_message(channel, "`track [USERNAME]` tells articlebot that you wish to follow card movements for [USERNAME] on Trello.")?;
         }
         else if command == "tracking" {
             if let Some(sdoc) = self.db.collection("slack").find_one(Some(doc! {
