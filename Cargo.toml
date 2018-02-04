@@ -1,6 +1,6 @@
 [package]
 name = "articlebot"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["dmhacker <dmhacker@yahoo.com>"]
 
 [dependencies]
@@ -15,4 +15,4 @@ bson = "0.10.0"
 mongodb = "0.3.7"
 chrono = "0.4"
 log = "0.4.1"
-pretty_env_logger = "0.2.0"
+env_logger = "0.5.3"

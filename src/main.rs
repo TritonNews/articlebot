@@ -5,7 +5,7 @@ extern crate reqwest;
 extern crate chrono;
 #[macro_use]
 extern crate log;
-extern crate pretty_env_logger;
+extern crate env_logger;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -25,8 +25,8 @@ use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::sync::{Mutex, Arc};
 
-use trello::BoardHandler;
-use trello_listeners::RelayBoardListener;
+use trello::{BoardHandler, CardHandler};
+use trello_listeners::RelayActionListener;
 
 use commands::CommandHandler;
 
@@ -38,11 +38,20 @@ use mongodb::db::Database;
 const MONGODB_HOSTNAME: &'static str = "localhost";
 const MONGODB_PORT: u16 = 27017;
 const MONGODB_DATABASE: &'static str = "articlebot";
-const FLUSH_MESSAGES_DELAY_SECONDS: u64 = 30;
+const TRY_FLUSH_INTERVAL: u64 = 30;
 
 struct SlackHandler {
-    commands: CommandHandler,
-    rx: Receiver<String>
+    command_handler: CommandHandler,
+    buffer_rx: Receiver<String>
+}
+
+impl SlackHandler {
+    fn new(command_handler: CommandHandler, buffer_rx: Receiver<String>) -> SlackHandler {
+        SlackHandler {
+            command_handler: command_handler,
+            buffer_rx: buffer_rx
+        }
+    }
 }
 
 impl EventHandler for SlackHandler {
@@ -50,11 +59,11 @@ impl EventHandler for SlackHandler {
         let sender = cli.sender();
         if let Event::Message(boxed_message) = event {
             if let Message::Standard(message) = *boxed_message {
-                self.commands.handle_message(message, cli);
+                self.command_handler.handle_message(message, cli).expect("Slack commands error");
             }
             else if let Message::BotMessage(_) = *boxed_message {
                 loop {
-                    match self.rx.try_recv() {
+                    match self.buffer_rx.try_recv() {
                         Ok(channel_message) => {
                             let split_channel_message: Vec<&str> = channel_message.split("|").collect();
                             sender.send_message(split_channel_message[0], split_channel_message[1]).expect("Slack sender error");
@@ -82,7 +91,7 @@ fn open_database_connection() -> Database {
 
 fn main() {
     // Logging utilities
-    pretty_env_logger::init();
+    env_logger::init();
 
     // Get all environment variables
     let slack_api_key = env::var("SLACK_API_KEY").expect("Slack API key not found");
@@ -94,54 +103,42 @@ fn main() {
     let (tx, rx) = mpsc::channel();
     let buffer_count = Arc::new(Mutex::new(0));
 
-    // Slack webhook occasionally sends messages to itself to flush message buffer
+    // Slack webhook occasionally sends messages to the #articlebot-reserved to flush message buffer
     let webhook_buffer_count = Arc::clone(&buffer_count);
     thread::spawn(move || {
         let slack = Slack::new(&slack_webhook[..]).unwrap();
         loop {
-
+            // This inner scope is necessary because it forces the Mutex to unlock before the thread sleeps
             {
                 let mut message_count = webhook_buffer_count.lock().unwrap();
-
-                info!("{} messages in buffer. Considering a flush ...", *message_count);
-
                 if *message_count > 0 {
+                    info!("Flushing {} messages in buffer ...", *message_count);
+
                     let payload = PayloadBuilder::new()
                       .text(&format!("articlebot is now flushing {} messages in its internal mpsc channel.", *message_count)[..])
-                      .channel("#articlebot-reserved")
                       .build()
                       .unwrap();
 
-                    let res = slack.send(&payload);
-                    match res {
-                        Ok(()) => info!("Sent message to #articlebot-reserved."),
-                        Err(e) => error!("Error flushing message buffer: {:?}", e)
-                    }
+                    slack.send(&payload).expect("Webhook flush error");
 
                     *message_count = 0;
                 }
             }
-
-            thread::sleep(Duration::from_secs(FLUSH_MESSAGES_DELAY_SECONDS));
+            thread::sleep(Duration::from_secs(TRY_FLUSH_INTERVAL));
         }
     });
 
     // Offload the Trello updater to its own thread so it doesn't block the main thread
     let trello_buffer_count = Arc::clone(&buffer_count);
     thread::spawn(move || {
-        // Connect to Trello (will block main thread)
-        let db = open_database_connection();
-        let board_listener = RelayBoardListener::new(db, tx, trello_buffer_count, &trello_api_key, &trello_oauth_token);
-        let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, board_listener);
-        board_handler.listen().expect("Event loop error");
+        let card_handler = CardHandler::new(&trello_api_key, &trello_oauth_token);
+        let action_listener = RelayActionListener::new(open_database_connection(), card_handler, tx, trello_buffer_count);
+        let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, action_listener);
+        board_handler.listen().expect("Trello handler error");
     });
 
     // Slack event handler
-    let db = open_database_connection();
-    let command_handler = CommandHandler::new(db);
-    let mut slack_handler = SlackHandler {
-        commands: command_handler,
-        rx: rx
-    };
+    let command_handler = CommandHandler::new(open_database_connection());
+    let mut slack_handler = SlackHandler::new(command_handler, rx);
     RtmClient::login_and_run(&slack_api_key, &mut slack_handler).expect("Slack client error");
 }
