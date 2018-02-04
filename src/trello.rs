@@ -3,34 +3,12 @@ use std::{env, thread};
 use reqwest::Client;
 use reqwest::header::UserAgent;
 use reqwest::Result;
-use serde_json::Value;
 use chrono::prelude::*;
+use trello_models::*;
 
+const API_URL: &'static str = "https://api.trello.com/1";
 const USER_AGENT: &'static str = "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
 const UPDATE_INTERVAL_SECONDS: u64 = 60;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Member {
-    pub id: String,
-    pub avatar_hash: String,
-    pub full_name: String,
-    pub initials: String,
-    pub username: String
-}
-
-#[derive(Deserialize)]
-pub struct Action {
-    pub id: String,
-    pub data: Value,
-    pub date: String, // TODO: Switch to using DateTime<Utc> later
-    #[serde(rename = "type")]
-    pub action_type: String,
-    #[serde(rename = "idMemberCreator")]
-    pub creator_id: String,
-    #[serde(rename = "memberCreator")]
-    pub creator: Member
-}
 
 pub trait BoardListener {
     fn get_filtered_actions(&self) -> &str;
@@ -52,7 +30,7 @@ impl<L : BoardListener> BoardHandler<L> {
             id: board_id.to_string(),
             board_listener: board_listener,
             http_since_parameter: Utc::now(),
-            http_url: format!("https://api.trello.com/1/boards/{}", board_id).to_string(),
+            http_url: format!("{}/boards/{}", API_URL, board_id).to_string(),
             http_token_parameters: format!("key={}&token={}", trello_api_key, trello_oauth_token).to_string(),
             http_client: Client::new()
         }
@@ -63,7 +41,7 @@ impl<L : BoardListener> BoardHandler<L> {
         loop {
             let url = format!("{}/actions?filter={}&since={}&{}", self.http_url, self.board_listener.get_filtered_actions(), self.http_since_parameter, self.http_token_parameters);
 
-            info!("Pinging board ...");
+            info!("Pinging board ... {}", url);
 
             let mut resp = self.http_client
                 .get(&url)
@@ -85,4 +63,34 @@ impl<L : BoardListener> BoardHandler<L> {
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL_SECONDS));
         }
     }
+}
+
+// TODO: Remove this gimmicky solution and replace with a CardHandler
+pub fn get_card_members(card_id: &str, http_token_parameters: &str, http_client: &Client) -> Result<Vec<Member>> {
+    let card_url = format!("{}/cards/{}?fields=all&{}", API_URL, card_id, http_token_parameters);
+
+    info!("Fetching card ... {}", card_url);
+
+    let mut card_resp = http_client
+        .get(&card_url)
+        .header(UserAgent::new(USER_AGENT.to_string()))
+        .send()?;
+
+    let card : Card = card_resp.json()?;
+
+    let mut members = Vec::new();
+    for member_id in card.id_members {
+        let member_url = format!("{}/members/{}?fields=all&{}", API_URL, member_id, http_token_parameters);
+
+        let mut member_resp = http_client
+            .get(&member_url)
+            .header(UserAgent::new(USER_AGENT.to_string()))
+            .send()?;
+
+        let member : Member = member_resp.json()?;
+
+        members.push(member);
+    }
+
+    Ok(members)
 }
