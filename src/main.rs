@@ -33,7 +33,8 @@ const MONGODB_DATABASE: &'static str = "articlebot";
 const FLUSH_MESSAGES_DELAY_SECONDS: u64 = 30;
 
 struct SlackHandler {
-    db: Database
+    db: Database,
+    last_channel: String
 }
 
 impl EventHandler for SlackHandler {
@@ -141,16 +142,18 @@ impl EventHandler for SlackHandler {
                         }, None).expect("Failed to insert document");
                     }
 
+                    self.last_channel = channel.to_string();
                     sender.send_message(channel, &format!("You will now be notified when {}'s articles are moved in Trello.", tracking)[..])
                         .expect("Slack sender error");
                 }
                 else {
+                    self.last_channel = channel.to_string();
                     sender.send_message(channel, &format!("I did not understand your command \"{}\".", command)[..])
                         .expect("Slack sender error");
                 }
             }
-            else if let Message::BotMessage(message) = *boxed_message {
-
+            else if let Message::BotMessage(_) = *boxed_message {
+                sender.send_message(&self.last_channel[..], "Have a good day.").expect("Slack sender error");
             }
         }
     }
@@ -215,7 +218,8 @@ fn main() {
     // Slack event handler
     let db = open_database_connection();
     let mut slack_handler = SlackHandler {
-        db: db
+        db: db,
+        last_channel: "".to_string()
     };
     slack_client.run(&mut slack_handler).expect("Slack client error");
 }
