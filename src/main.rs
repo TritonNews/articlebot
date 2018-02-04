@@ -38,6 +38,7 @@ struct SlackHandler {
 
 impl EventHandler for SlackHandler {
     fn on_event(&mut self, cli: &RtmClient, event: Event) {
+        info!("Event occurred: {:?}", event);
         let sender = cli.sender();
         if let Event::Message(boxed_message) = event {
             if let Message::Standard(message) = *boxed_message {
@@ -185,7 +186,7 @@ fn main() {
             let slack = Slack::new(&slack_webhook[..]).unwrap();
             let p = PayloadBuilder::new()
               .text("Flushing message buffer ...")
-              .channel("#_articlebot")
+              .channel("#articlebot-reserved")
               .build()
               .unwrap();
 
