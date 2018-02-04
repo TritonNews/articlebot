@@ -97,7 +97,7 @@ pub fn get_card_members(card_id: &str, http_token_parameters: &str, http_client:
         .send()?;
     let result : Value = creator_resp.json()?;
     let create_actions : &Vec<Value> = result.get("actions").unwrap().as_array().unwrap();
-    let create_action : &Value = create_actions.iter().nth(1).unwrap();
+    let create_action : &Value = create_actions.iter().nth(0).unwrap();
     let creator : Member = from_value(create_action.get("memberCreator").unwrap().clone()).unwrap();
 
     if !(members.iter().any(|m| *m == creator)) {
