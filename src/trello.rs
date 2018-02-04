@@ -96,7 +96,7 @@ pub fn get_card_members(card_id: &str, http_token_parameters: &str, http_client:
     let creator_url = format!("{}/cards/{}?fields=id&actions=createCard,copyCard&action_fields=idMemberCreator,memberCreator&action_memberCreator_fields=all&{}",
         API_URL, card_id, http_token_parameters);
 
-    debug!(format!("{}", creator_url));
+    debug!("{}", creator_url);
 
     let mut creator_resp = http_client
         .get(&creator_url)
