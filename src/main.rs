@@ -41,7 +41,7 @@ impl EventHandler for SlackHandler {
                 let channel : &str = &message.channel.unwrap()[..];
 
                 let split_text: Vec<&str> = text.split(" ").collect();
-                let command = split_text[0];
+                let command = split_text[0].to_lowercase();
                 let args = &split_text[1..];
 
                 let user = message.user.unwrap();
@@ -49,7 +49,7 @@ impl EventHandler for SlackHandler {
                 info!("Message from {}: {}", user, text);
                 info!("Interpreting as COMMAND={} ARGUMENTS={:?}", command, args);
 
-                if command == "hello" {
+                if command == "hello" || command == "hi" {
                     sender.send_message(channel, "Hello there.").expect("Slack sender error");
                 }
                 else if command == "whoami" {
@@ -182,7 +182,6 @@ impl BoardListener for SlackBoardListener {
             let card_members = get_card_members(card_id, &self.http_token_parameters[..], &self.http_client).expect("Trello card error");
 
             info!("Card \"{}\" was moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name);
-            info!("Card has {} members associated with it.", card_members.iter().count());
 
             for member in card_members {
                 let trello_coll = self.db.collection("trello");
@@ -190,9 +189,12 @@ impl BoardListener for SlackBoardListener {
                     "name": &member.full_name
                 };
 
+                info!("Member \"{}\" is associated with this card.", &member.full_name);
+
                 // If any Slack user is tracking this Trello user, find all Slack DM channel IDs through MongoDB and send a message to each one
                 if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup), None).expect("Failed to find document") {
                     let trackers = tdoc.get_array("trackers").unwrap();
+                    info!("Member is being tracked by {} Slack users.", trackers.iter().count());
 
                     let slack_coll = self.db.collection("slack");
 
@@ -207,6 +209,9 @@ impl BoardListener for SlackBoardListener {
                       self.sender.send_message(channel, &format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name))
                         .expect("Slack sender error");
                     }
+                }
+                else {
+                    info!("Member is not being tracked.");
                 }
             }
         }
