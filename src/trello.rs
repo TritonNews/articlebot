@@ -5,6 +5,7 @@ use reqwest::header::UserAgent;
 use reqwest::Result;
 use chrono::prelude::*;
 use trello_models::*;
+use serde_json::{Value, from_value};
 
 const API_URL: &'static str = "https://api.trello.com/1";
 const USER_AGENT: &'static str = "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586";
@@ -68,28 +69,39 @@ impl<L : BoardListener> BoardHandler<L> {
 // TODO: Remove this gimmicky solution and replace with a CardHandler
 pub fn get_card_members(card_id: &str, http_token_parameters: &str, http_client: &Client) -> Result<Vec<Member>> {
     let card_url = format!("{}/cards/{}?fields=all&{}", API_URL, card_id, http_token_parameters);
-
     info!("Fetching card ... {}", card_url);
-
     let mut card_resp = http_client
         .get(&card_url)
         .header(UserAgent::new(USER_AGENT.to_string()))
         .send()?;
-
     let card : Card = card_resp.json()?;
 
     let mut members = Vec::new();
     for member_id in card.id_members {
         let member_url = format!("{}/members/{}?fields=all&{}", API_URL, member_id, http_token_parameters);
-
         let mut member_resp = http_client
             .get(&member_url)
             .header(UserAgent::new(USER_AGENT.to_string()))
             .send()?;
-
         let member : Member = member_resp.json()?;
 
         members.push(member);
+    }
+
+    let creator_url = format!("{}/cards/{}?fields=id&actions=createCard&action_fields=idMemberCreator,memberCreator&action_memberCreator_fields=all&{}",
+        API_URL, card_id, http_token_parameters);
+    info!("Getting card creator ... {}", creator_url);
+    let mut creator_resp = http_client
+        .get(&creator_url)
+        .header(UserAgent::new(USER_AGENT.to_string()))
+        .send()?;
+    let result : Value = creator_resp.json()?;
+    let create_actions : &Vec<Value> = result.get("actions").unwrap().as_array().unwrap();
+    let create_action : &Value = create_actions.iter().nth(1).unwrap();
+    let creator : Member = from_value(create_action.get("memberCreator").unwrap().clone()).unwrap();
+
+    if !(members.iter().any(|m| *m == creator)) {
+        members.push(creator);
     }
 
     Ok(members)

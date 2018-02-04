@@ -20,6 +20,12 @@ pub struct Member {
     pub username: String
 }
 
+impl PartialEq for Member {
+    fn eq(&self, other: &Member) -> bool {
+        self.id == other.id
+    }
+}
+
 #[derive(Deserialize)]
 pub struct Action {
     pub id: String,
