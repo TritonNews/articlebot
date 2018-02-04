@@ -199,17 +199,20 @@ fn main() {
     // Slack webhook occasionally sends messages to itself to flush message buffer
     let webhook_buffer_count = Arc::clone(&buffer_count);
     thread::spawn(move || {
+        let slack = Slack::new(&slack_webhook[..]).unwrap();
         loop {
             let mut message_count = webhook_buffer_count.lock().unwrap();
+
+            info!("{} messages in buffer. Considering a flush ...", *message_count);
+
             if *message_count > 0 {
-                let slack = Slack::new(&slack_webhook[..]).unwrap();
-                let p = PayloadBuilder::new()
+                let payload = PayloadBuilder::new()
                   .text(&format!("articlebot is now flushing {} messages in its internal mpsc channel.", *message_count)[..])
                   .channel("#articlebot-reserved")
                   .build()
                   .unwrap();
 
-                let res = slack.send(&p);
+                let res = slack.send(&payload);
                 match res {
                     Ok(()) => info!("Sent message to #articlebot-reserved."),
                     Err(e) => error!("Error flushing message buffer: {:?}", e)
