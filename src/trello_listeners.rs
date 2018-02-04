@@ -48,11 +48,11 @@ impl ActionListener for RelayActionListener {
             info!("Card \"{}\" was moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name);
 
             for member in card_members {
-                info!("Member \"{}\" is associated with this card.", &member.full_name);
+                info!("Member \"{}\" is associated with this card.", &member.username);
 
                 // If any Slack user is tracking this Trello user, find all Slack DM channel IDs through MongoDB and send a message to each one
                 if let Some(tdoc) = self.db.collection("trello").find_one(Some(doc! {
-                    "name": &member.full_name
+                    "name": &member.username
                 }), None)? {
                     let trackers = tdoc.get_array("trackers").unwrap();
                     for tracker in trackers {
@@ -63,7 +63,7 @@ impl ActionListener for RelayActionListener {
                         let channel = sdoc.get_str("cid").unwrap();
 
                         // Send the message by passing it to our mpsc sender
-                        let message = format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name);
+                        let message = format!("Your card _{}_ has been moved from *{}* to *{}*.", card_title, list_before_name, list_after_name);
                         self.buffer_tx.send(format!("{}|{}", channel, message))?;
 
                         // Increment the buffer count to notify the webhook that a flush needs to happen

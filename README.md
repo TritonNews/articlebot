@@ -17,7 +17,7 @@ Here is a list of valid commands:
 * hello/hi
   - Responds with a greeting.
 
-* version/v
+* version
   - Prints out articlebot's current version.
 
 * help
@@ -26,9 +26,9 @@ Here is a list of valid commands:
 * tracking
   - Prints out who you are following on Trello, as recorded in articlebot's database.
 
-* track [PERSON NAME]
-  - Tells articlebot that you wish to follow card movements for [PERSON NAME] on Trello.
-  - e.g. "track John Doe" would enable Slack notifications for John Doe's Trello cards.
+* track [USERNAME]
+  - Tells articlebot that you wish to follow card movements for [USERNAME] on Trello.
+  - [USERNAME] must be exact or articlebot will not return notifications.
 
 ## Build Process
 

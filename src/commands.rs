@@ -49,16 +49,17 @@ impl CommandHandler {
             sender.send_message(channel, "Please type in `help` for a list of commands.")?;
         }
         else if command == "help" {
-            sender.send_message(channel, "If you have not already, type in `tutorial` for an overview of my command system.")?;
+            sender.send_message(channel, "If you have not already, type in `tutorial` for an overview of the command system.")?;
             sender.send_message(channel, "Here is a list of valid commands and their descriptions:")?;
-            sender.send_message(channel, "`hello/hi` ... Displays a nice greeting.")?;
-            sender.send_message(channel, "`version` ... Displays articlebot's version number.")?;
-            sender.send_message(channel, "`tutorial` ... Displays an overview of how commands work.")?;
-            sender.send_message(channel, "`help` ... Displays a list of valid commands.")?;
-            sender.send_message(channel, "`tracking` ... Tells you who you are following on Trello.")?;
-            sender.send_message(channel, "`track [PERSON]` ... Tells articlebot that you wish to follow card movements for [PERSON] on Trello.")?;
-            sender.send_message(channel, "                     [PERSON] *MUST* be the exact, full name of the user, how it is listed in Trello.")?;
-            sender.send_message(channel, "                     e.g. *Jonathan Doe* instead of *John Doe* or *Jonathan*.")?;
+            sender.send_message(channel, "`hello`/`hi` displays a nice greeting.")?;
+            sender.send_message(channel, "`version` displays articlebot's version number.")?;
+            sender.send_message(channel, "`tutorial` displays an overview of how commands work.")?;
+            sender.send_message(channel, "`help` displays a list of valid commands.")?;
+            sender.send_message(channel, "`tracking` displays who you are following on Trello.")?;
+            sender.send_message(channel,
+                "`track [USERNAME]` tells articlebot that you wish to follow card movements for [USERNAME] on Trello. \
+                [USERNAME] must be the *exact username* of whoever you want to follow on Trello.";
+            )?;
 
         }
         else if command == "tracking" {
