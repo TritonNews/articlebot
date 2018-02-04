@@ -185,6 +185,7 @@ fn main() {
             let slack = Slack::new(&slack_webhook[..]).unwrap();
             let p = PayloadBuilder::new()
               .text("Flushing message buffer ...")
+              .channel("#_articlebot")
               .build()
               .unwrap();
 
