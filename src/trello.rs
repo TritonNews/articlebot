@@ -97,11 +97,13 @@ pub fn get_card_members(card_id: &str, http_token_parameters: &str, http_client:
         .send()?;
     let result : Value = creator_resp.json()?;
     let create_actions : &Vec<Value> = result.get("actions").unwrap().as_array().unwrap();
-    let create_action : &Value = create_actions.iter().nth(0).unwrap();
-    let creator : Member = from_value(create_action.get("memberCreator").unwrap().clone()).unwrap();
+    if create_actions.iter().count() > 0 {
+        let create_action : &Value = create_actions.iter().nth(0).unwrap();
+        let creator : Member = from_value(create_action.get("memberCreator").unwrap().clone()).unwrap();
 
-    if !(members.iter().any(|m| *m == creator)) {
-        members.push(creator);
+        if !(members.iter().any(|m| *m == creator)) {
+            members.push(creator);
+        }
     }
 
     Ok(members)
