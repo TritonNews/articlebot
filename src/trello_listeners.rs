@@ -1,22 +1,22 @@
 
 use trello::{BoardListener, get_card, get_card_members};
 use trello_models::Action;
-use slack::Sender;
+use std::sync::mpsc::Sender;
 use mongodb::db::{Database, ThreadedDatabase};
 use reqwest::Client;
 
 pub struct RelayBoardListener {
     db: Database,
-    sender: Sender,
+    tx: Sender<String>,
     http_token_parameters: String,
     http_client: Client
 }
 
 impl RelayBoardListener {
-    pub fn new(db : Database, slack_sender : Sender, trello_api_key : &str, trello_oauth_token : &str) -> RelayBoardListener {
+    pub fn new(db : Database, tx : Sender<String>, trello_api_key : &str, trello_oauth_token : &str) -> RelayBoardListener {
         RelayBoardListener {
             db: db,
-            sender: slack_sender,
+            tx: tx,
             http_token_parameters: format!("key={}&token={}", trello_api_key, trello_oauth_token).to_string(),
             http_client: Client::new()
         }
@@ -64,8 +64,8 @@ impl BoardListener for RelayBoardListener {
                       let sdoc = slack_coll.find_one(Some(slack_lookup), None).expect("Failed to find document").unwrap();
                       let channel = sdoc.get_str("cid").unwrap();
 
-                      self.sender.send_message(channel, &format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name))
-                        .expect("Slack sender error");
+                      let message = format!("Your card \"{}\" has been moved from \"{}\" to \"{}\".", card_title, list_before_name, list_after_name);
+                      self.tx.send(format!("{}|{}", channel, message)).unwrap();
                     }
                 }
             }

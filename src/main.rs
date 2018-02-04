@@ -19,8 +19,12 @@ mod trello_listeners;
 
 use std::{env, thread};
 use std::time::Duration;
+use std::sync::mpsc;
+use std::sync::mpsc::Receiver;
+
 use trello::BoardHandler;
 use trello_listeners::RelayBoardListener;
+
 use slack::{Event, EventHandler, RtmClient, Message};
 use slack_hook::{Slack, PayloadBuilder};
 use mongodb::{Client, ThreadedClient};
@@ -30,11 +34,11 @@ use bson::Bson;
 const MONGODB_HOSTNAME: &'static str = "localhost";
 const MONGODB_PORT: u16 = 27017;
 const MONGODB_DATABASE: &'static str = "articlebot";
-const FLUSH_MESSAGES_DELAY_SECONDS: u64 = 30;
+const FLUSH_MESSAGES_DELAY_SECONDS: u64 = 600;
 
 struct SlackHandler {
     db: Database,
-    last_channel: String
+    rx: Receiver<String>
 }
 
 impl EventHandler for SlackHandler {
@@ -142,18 +146,25 @@ impl EventHandler for SlackHandler {
                         }, None).expect("Failed to insert document");
                     }
 
-                    self.last_channel = channel.to_string();
                     sender.send_message(channel, &format!("You will now be notified when {}'s articles are moved in Trello.", tracking)[..])
                         .expect("Slack sender error");
                 }
                 else {
-                    self.last_channel = channel.to_string();
                     sender.send_message(channel, &format!("I did not understand your command \"{}\".", command)[..])
                         .expect("Slack sender error");
                 }
             }
             else if let Message::BotMessage(_) = *boxed_message {
-                sender.send_message(&self.last_channel[..], "Have a good day.").expect("Slack sender error");
+                loop {
+                    match self.rx.try_recv() {
+                        Ok(channel_message) => {
+                            let split_channel_message: Vec<&str> = channel_message.split("|").collect();
+                            sender.send_message(split_channel_message[0], split_channel_message[1]).expect("Slack sender error");
+                        }
+                        Err(mpsc::TryRecvError::Empty) => break,
+                        Err(mpsc::TryRecvError::Disconnected) => panic!("Board listener detached!")
+                    }
+                }
             }
         }
     }
@@ -184,7 +195,8 @@ fn main() {
 
     // Create shared Slack utilities
     let slack_client = RtmClient::login(&slack_api_key).expect("Slack connection error");
-    let slack_sender = slack_client.sender().clone();
+
+    let (tx, rx) = mpsc::channel();
 
     // Slack webhook occasionally sends messages to itself to flush message buffer
     thread::spawn(move || {
@@ -210,7 +222,7 @@ fn main() {
     thread::spawn(move || {
         // Connect to Trello (will block main thread)
         let db = open_database_connection();
-        let board_listener = RelayBoardListener::new(db, slack_sender, &trello_api_key, &trello_oauth_token);
+        let board_listener = RelayBoardListener::new(db, tx, &trello_api_key, &trello_oauth_token);
         let mut board_handler = BoardHandler::new(&trello_board_id, &trello_api_key, &trello_oauth_token, board_listener);
         board_handler.listen().expect("Event loop error");
     });
@@ -219,7 +231,7 @@ fn main() {
     let db = open_database_connection();
     let mut slack_handler = SlackHandler {
         db: db,
-        last_channel: "".to_string()
+        rx: rx
     };
     slack_client.run(&mut slack_handler).expect("Slack client error");
 }
