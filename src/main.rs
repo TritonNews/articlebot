@@ -185,14 +185,12 @@ fn main() {
             let slack = Slack::new(&slack_webhook[..]).unwrap();
             let p = PayloadBuilder::new()
               .text("Flushing message buffer ...")
-              .channel("@articlebot")
-              .username("articlebot")
               .build()
               .unwrap();
 
             let res = slack.send(&p);
             match res {
-                Ok(()) => info!("Successively flushed message buffer by sending message to self"),
+                Ok(()) => info!("Flushed message buffer by sending message to self."),
                 Err(e) => error!("Error flushing message buffer: {:?}", e)
             }
 
