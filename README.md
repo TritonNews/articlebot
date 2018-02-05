@@ -29,7 +29,7 @@ Prerequisites:
 * make
 * Rust
 * MongoDB (instance must be running @ localhost:27017)
-* A Slack site (apps & webhooks must be enabled)
+* A Slack site (apps & webhooks must be enabled and the bot must be in the same channel as the webhook)
 * A Trello board
 
 These environment variables will need to have been appropriately filled in:
