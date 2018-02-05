@@ -35,7 +35,7 @@ Prerequisites:
 These environment variables will need to have been appropriately filled in:
 
 * SLACK_API_KEY
-* SLACK_WEBHOOK_URL
+* SLACK_WEBHOOK
 * TRELLO_API_KEY
 * TRELLO_OAUTH_TOKEN
 * TRELLO_BOARD_ID
