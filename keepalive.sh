@@ -1,3 +1,4 @@
 if ! pgrep -x "articlebot" > /dev/null ; then
-    make release
+  echo "Restarting bot ..."
+  make release
 fi
