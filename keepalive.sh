@@ -1,3 +1,3 @@
-if ! pgrep -x "gedit" > /dev/null ; then
+if ! pgrep -x "articlebot" > /dev/null ; then
     make release
 fi
