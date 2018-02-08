@@ -21,6 +21,7 @@ Here is a list of valid commands:
 * `tracking` displays who you are following on Trello, as recorded in articlebot's database.
 * `track [USERNAME]` tells articlebot that you wish to follow card movements for [USERNAME] on Trello.
   - [USERNAME] must be exact or articlebot will not return any notifications to you.
+* `untrack` tells articlebot that you no longer wish to unfollow any Trello user you might have been following
 
 ## Build Process
 
