@@ -57,6 +57,7 @@ impl CommandHandler {
             sender.send_message(channel, "`help` displays a list of valid commands.")?;
             sender.send_message(channel, "`tracking` displays who you are following on Trello.")?;
             sender.send_message(channel, "`track [USERNAME]` tells articlebot that you wish to follow card movements for [USERNAME] on Trello.")?;
+            sender.send_message(channel, "`untrack` tells articlebot to stop tracking any user you are currently following.")?;
         }
         else if command == "tracking" {
             if let Some(sdoc) = self.db.collection("slack").find_one(Some(doc! {
@@ -132,6 +133,41 @@ impl CommandHandler {
             }
 
             sender.send_message(channel, &format!("You will now be notified when *{}*'s articles are moved in Trello.", tracking)[..])?;
+        }
+        else if command == "untrack" {
+            let tracker = user;
+
+            // Relevant MongoDB collections
+            let slack_coll = self.db.collection("slack");
+            let trello_coll = self.db.collection("trello");
+
+            if let Some(sdoc) = slack_coll.find_one_and_delete(Some(doc! {
+                "uid": tracker
+            }, None)? {
+                let trello_lookup_old = doc! {
+                    "name": sdoc.get_str("tracking").unwrap()
+                };
+                if let Some(tdoc) = trello_coll.find_one(Some(trello_lookup_old.clone()), None)? {
+                    // Remove our current tracker from where it was originally tracking
+                    let mut trackers_old = tdoc.get_array("trackers").unwrap().clone();
+                    let index = trackers_old.iter().position(|tracker_old| *tracker_old.as_str().unwrap() == tracker.to_string()).unwrap();
+                    trackers_old.remove(index);
+
+                    // If the Trello user has no trackers, delete it. Otherwise, update it to reflect the changes made to its changes.
+                    if trackers_old.is_empty() {
+                        trello_coll.delete_one(trello_lookup_old, None)?;
+                    }
+                    else {
+                        let mut tdoc_new = tdoc.clone();
+                        tdoc_new.insert_bson("trackers".to_string(), Bson::Array(trackers_old));
+                        trello_coll.update_one(trello_lookup_old, tdoc_new, None)?;
+                    }
+                }
+                sender.send_message(channel, "You are no longer tracking anyone in Trello.")?;
+            }
+            else {
+                sender.send_message(channel, "You are currently not tracking a Trello user.")?;
+            }
         }
         else {
             sender.send_message(channel, &format!("I did not understand your command `{}`.", command)[..])?;
