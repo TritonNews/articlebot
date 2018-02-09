@@ -141,9 +141,9 @@ impl CommandHandler {
             let slack_coll = self.db.collection("slack");
             let trello_coll = self.db.collection("trello");
 
-            if let Some(sdoc) = slack_coll.find_one_and_delete(Some(doc! {
+            if let Some(sdoc) = slack_coll.find_one_and_delete(doc! {
                 "uid": tracker
-            }), None)? {
+            }, None)? {
                 let trello_lookup_old = doc! {
                     "name": sdoc.get_str("tracking").unwrap()
                 };
