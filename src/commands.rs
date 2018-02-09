@@ -143,7 +143,7 @@ impl CommandHandler {
 
             if let Some(sdoc) = slack_coll.find_one_and_delete(Some(doc! {
                 "uid": tracker
-            }, None)? {
+            }), None)? {
                 let trello_lookup_old = doc! {
                     "name": sdoc.get_str("tracking").unwrap()
                 };
